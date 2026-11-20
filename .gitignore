@@ -1,5 +1,5 @@
 node_modules
 dist
-screenshots
+/screenshots
 *.log
 .DS_Store

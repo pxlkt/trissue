@@ -16,6 +16,13 @@ bunx trissue MileniumHQ/Paperboard
    steer it while it works, or press `esc` to stop.
 5. You file the issue on GitHub, copy it, or open one of the project's links.
 
+| | |
+|---|---|
+| ![The trust warning shown after the repo downloads](docs/screenshots/trust.png) | ![Explaining the issue and picking an agent](docs/screenshots/compose.png) |
+| Trust the repo | Explain the issue, pick an agent |
+| ![The agent investigating while you steer it](docs/screenshots/running.png) | ![The finished issue with ways to send it](docs/screenshots/result.png) |
+| Watch and steer the agent | File, copy, or send the issue |
+
 ## Agents
 
 trissue talks to agents over the [Agent Client Protocol](https://agentclientprotocol.com).
@@ -134,7 +141,7 @@ into rows. trissue-embedded runs on Node 20+, Bun and Electron.
 bun install
 bun start <repo>         # builds the engine, then runs the interface from source
 bun run build            # builds both packages
-bun run screenshots      # renders every screen to screenshots/
+bun run screenshots      # renders every screen to screenshots/ (the README's are copies in docs/screenshots/)
 bun run typecheck
 ```
 
