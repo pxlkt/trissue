@@ -1,0 +1,444 @@
+[
+  {
+    "id": "agoragentic-acp",
+    "name": "Agoragentic",
+    "bins": [
+      "agoragentic-mcp"
+    ],
+    "args": [
+      "--acp"
+    ],
+    "env": {}
+  },
+  {
+    "id": "amp-acp",
+    "name": "Amp",
+    "bins": [
+      "amp-acp"
+    ],
+    "args": [],
+    "env": {}
+  },
+  {
+    "id": "auggie",
+    "name": "Auggie CLI",
+    "bins": [
+      "auggie"
+    ],
+    "args": [
+      "--acp"
+    ],
+    "env": {
+      "AUGMENT_DISABLE_AUTO_UPDATE": "1"
+    }
+  },
+  {
+    "id": "autohand",
+    "name": "Autohand Code",
+    "bins": [
+      "autohand"
+    ],
+    "args": [
+      "--acp"
+    ],
+    "env": {}
+  },
+  {
+    "id": "bob",
+    "name": "Bob",
+    "bins": [
+      "bob"
+    ],
+    "args": [
+      "acp"
+    ],
+    "env": {}
+  },
+  {
+    "id": "cline",
+    "name": "Cline",
+    "bins": [
+      "cline"
+    ],
+    "args": [
+      "--acp"
+    ],
+    "env": {}
+  },
+  {
+    "id": "codebuddy-code",
+    "name": "Codebuddy Code",
+    "bins": [
+      "cbc",
+      "codebuddy",
+      "cbc-prewarm",
+      "codebuddy-code",
+      "codebuddy-lowmem"
+    ],
+    "args": [
+      "--acp"
+    ],
+    "env": {}
+  },
+  {
+    "id": "cortex-code",
+    "name": "Cortex Code",
+    "bins": [
+      "cortex"
+    ],
+    "args": [
+      "acp",
+      "serve"
+    ],
+    "env": {}
+  },
+  {
+    "id": "corust-agent",
+    "name": "Corust Agent",
+    "bins": [
+      "corust-agent-acp"
+    ],
+    "args": [],
+    "env": {}
+  },
+  {
+    "id": "crow-cli",
+    "name": "crow-cli",
+    "bins": [
+      "crow-cli"
+    ],
+    "args": [
+      "acp"
+    ],
+    "env": {}
+  },
+  {
+    "id": "deepagents",
+    "name": "DeepAgents",
+    "bins": [
+      "deepagents-acp"
+    ],
+    "args": [],
+    "env": {}
+  },
+  {
+    "id": "devin",
+    "name": "Devin",
+    "bins": [
+      "devin"
+    ],
+    "args": [
+      "acp"
+    ],
+    "env": {}
+  },
+  {
+    "id": "dimcode",
+    "name": "DimCode",
+    "bins": [
+      "dim",
+      "dimcode"
+    ],
+    "args": [
+      "acp"
+    ],
+    "env": {}
+  },
+  {
+    "id": "dirac",
+    "name": "Dirac",
+    "bins": [
+      "dirac"
+    ],
+    "args": [
+      "--acp"
+    ],
+    "env": {}
+  },
+  {
+    "id": "factory-droid",
+    "name": "Factory Droid",
+    "bins": [
+      "droid"
+    ],
+    "args": [
+      "exec",
+      "--output-format",
+      "acp-daemon"
+    ],
+    "env": {
+      "DROID_DISABLE_AUTO_UPDATE": "true",
+      "FACTORY_DROID_AUTO_UPDATE_ENABLED": "false"
+    }
+  },
+  {
+    "id": "fast-agent",
+    "name": "fast-agent",
+    "bins": [
+      "fast-agent-acp"
+    ],
+    "args": [
+      "-x"
+    ],
+    "env": {
+      "FAST_AGENT_MODEL": "codexplan"
+    }
+  },
+  {
+    "id": "gemini",
+    "name": "Gemini CLI",
+    "bins": [
+      "gemini"
+    ],
+    "args": [
+      "--acp"
+    ],
+    "env": {}
+  },
+  {
+    "id": "github-copilot-cli",
+    "name": "GitHub Copilot",
+    "bins": [
+      "copilot"
+    ],
+    "args": [
+      "--acp"
+    ],
+    "env": {}
+  },
+  {
+    "id": "glm-acp-agent",
+    "name": "GLM Agent",
+    "bins": [
+      "glm-acp-agent"
+    ],
+    "args": [],
+    "env": {}
+  },
+  {
+    "id": "goose",
+    "name": "goose",
+    "bins": [
+      "goose"
+    ],
+    "args": [
+      "acp"
+    ],
+    "env": {}
+  },
+  {
+    "id": "harn",
+    "name": "Harn",
+    "bins": [
+      "harn"
+    ],
+    "args": [
+      "serve",
+      "acp"
+    ],
+    "env": {}
+  },
+  {
+    "id": "junie",
+    "name": "Junie",
+    "bins": [
+      "junie"
+    ],
+    "args": [
+      "--acp=true"
+    ],
+    "env": {}
+  },
+  {
+    "id": "kilo",
+    "name": "Kilo",
+    "bins": [
+      "kilo",
+      "kilocode"
+    ],
+    "args": [
+      "acp"
+    ],
+    "env": {}
+  },
+  {
+    "id": "kimchi",
+    "name": "Kimchi",
+    "bins": [
+      "kimchi"
+    ],
+    "args": [
+      "--mode",
+      "acp"
+    ],
+    "env": {}
+  },
+  {
+    "id": "kimi",
+    "name": "Kimi CLI (Legacy)",
+    "bins": [
+      "kimi"
+    ],
+    "args": [
+      "acp"
+    ],
+    "env": {}
+  },
+  {
+    "id": "kimi-code",
+    "name": "Kimi Code",
+    "bins": [
+      "kimi"
+    ],
+    "args": [
+      "acp"
+    ],
+    "env": {}
+  },
+  {
+    "id": "kiro",
+    "name": "Kiro CLI",
+    "bins": [
+      "kiro-cli"
+    ],
+    "args": [
+      "acp",
+      "--agent-engine=v3"
+    ],
+    "env": {}
+  },
+  {
+    "id": "minimax-code",
+    "name": "MiniMax Code",
+    "bins": [
+      "code-acp"
+    ],
+    "args": [
+      "acp"
+    ],
+    "env": {}
+  },
+  {
+    "id": "minion-code",
+    "name": "Minion Code",
+    "bins": [
+      "minion-code"
+    ],
+    "args": [
+      "acp"
+    ],
+    "env": {}
+  },
+  {
+    "id": "mistral-vibe",
+    "name": "Mistral Vibe",
+    "bins": [
+      "vibe-acp"
+    ],
+    "args": [],
+    "env": {}
+  },
+  {
+    "id": "muse-code",
+    "name": "Muse Code",
+    "bins": [
+      "muse"
+    ],
+    "args": [
+      "acp"
+    ],
+    "env": {
+      "MUSE_EXPERIMENTAL_ACP": "on"
+    }
+  },
+  {
+    "id": "nova",
+    "name": "Nova",
+    "bins": [
+      "nova",
+      "compass"
+    ],
+    "args": [
+      "acp"
+    ],
+    "env": {}
+  },
+  {
+    "id": "pi-acp",
+    "name": "pi ACP",
+    "bins": [
+      "pi-acp"
+    ],
+    "args": [],
+    "env": {}
+  },
+  {
+    "id": "poolside",
+    "name": "Poolside",
+    "bins": [
+      "pool-linux-amd64"
+    ],
+    "args": [
+      "acp"
+    ],
+    "env": {}
+  },
+  {
+    "id": "qoder",
+    "name": "Qoder CLI",
+    "bins": [
+      "qoder",
+      "qodercli"
+    ],
+    "args": [
+      "--acp"
+    ],
+    "env": {}
+  },
+  {
+    "id": "qwen-code",
+    "name": "Qwen Code",
+    "bins": [
+      "qwen"
+    ],
+    "args": [
+      "--acp",
+      "--experimental-skills"
+    ],
+    "env": {}
+  },
+  {
+    "id": "sigit",
+    "name": "siGit Code",
+    "bins": [
+      "sigit"
+    ],
+    "args": [],
+    "env": {}
+  },
+  {
+    "id": "stakpak",
+    "name": "Stakpak",
+    "bins": [
+      "stakpak"
+    ],
+    "args": [
+      "acp"
+    ],
+    "env": {}
+  },
+  {
+    "id": "vtcode",
+    "name": "VT Code",
+    "bins": [
+      "vtcode"
+    ],
+    "args": [
+      "acp"
+    ],
+    "env": {
+      "VT_ACP_ENABLED": "1",
+      "VT_ACP_ZED_ENABLED": "1"
+    }
+  }
+]
