@@ -11,6 +11,11 @@ import { RunningScreen } from "./screens/running.tsx";
 import { TrustScreen } from "./screens/trust.tsx";
 import { useStore } from "./store.ts";
 
+/**
+ * The largest the frame gets. In a bigger terminal it stays this size and
+ * sits in the middle, instead of stretching into a corner-heavy layout.
+ */
+export const MAX_FRAME = { width: 110, height: 36 };
 /** Cells the frame's border and padding take from each axis. */
 const FRAME_INSET = { x: 2 + 4, y: 2 + 2 };
 
@@ -25,7 +30,7 @@ export function App({ controller: c, onQuit }: { controller: Controller; onQuit:
   const product = c.config()?.product?.name ?? c.options.source.name;
   const source = c.options.source;
   const detail = source.org ? `${source.org}/${source.name}` : source.name;
-  const frame = { width: screen.columns, height: screen.rows };
+  const frame = { width: Math.min(screen.columns, MAX_FRAME.width), height: Math.min(screen.rows, MAX_FRAME.height) };
   const inner = { width: Math.max(frame.width - FRAME_INSET.x, 1), height: Math.max(frame.height - FRAME_INSET.y, 1) };
   const toast = c.toast();
 
