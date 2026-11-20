@@ -1,116 +1,97 @@
-import { SyntaxStyle, type ScrollBoxRenderable } from "@opentui/core";
-import { useKeyboard, useRenderer } from "@opentui/solid";
-import { createMemo, createSignal, onCleanup, Show } from "solid-js";
-import { BOLD, ButtonRow, Header, Hints } from "../components.tsx";
+import { Box, Text } from "ink";
+import { useState } from "react";
+import { ButtonRow, Header, Hints, Lines, Panel, useMeasure, type Line } from "../components.tsx";
 import type { Controller } from "../controller.ts";
+import { useKeys } from "../keys.ts";
+import { renderMarkdown, wrapSegments } from "../markdown.ts";
 import type { Theme } from "../theme.ts";
 
 type Action = { label: string; run: () => void };
 
-function markdownStyle(theme: Theme, owner: Parameters<typeof SyntaxStyle.fromStyles>[1]): SyntaxStyle {
-  const text = { fg: theme.text };
-  return SyntaxStyle.fromStyles(
-    {
-      default: text,
-      conceal: { fg: theme.faint },
-      "markup.heading": { fg: theme.text, bold: true },
-      "markup.heading.1": { fg: theme.text, bold: true },
-      "markup.heading.2": { fg: theme.text, bold: true },
-      "markup.heading.3": { fg: theme.text, bold: true },
-      "markup.strong": { fg: theme.text, bold: true },
-      "markup.italic": { fg: theme.text, italic: true },
-      "markup.strikethrough": { fg: theme.muted, dim: true },
-      "markup.raw": { fg: theme.product === theme.text ? theme.muted : theme.product },
-      "markup.raw.block": { fg: theme.muted },
-      "markup.link": { fg: theme.muted, underline: true },
-      "markup.link.url": { fg: theme.muted, underline: true },
-      "markup.link.label": { fg: theme.text, underline: true },
-      "markup.list": { fg: theme.muted },
-      "markup.quote": { fg: theme.muted, italic: true },
-      "punctuation.special": { fg: theme.faint },
-    },
-    owner,
-  );
-}
-
 /** The written issue, and the ways to send it. */
-export function ResultScreen(props: { controller: Controller; theme: Theme; product: string; detail: string; onQuit: () => void }) {
-  const c = props.controller;
-  const renderer = useRenderer();
-  const style = markdownStyle(props.theme, renderer.nativeScene);
-  onCleanup(() => style.destroy?.());
-  const [index, setIndex] = createSignal(0);
-  let scroll: ScrollBoxRenderable | undefined;
+export function ResultScreen({ controller: c, theme, product, detail, onQuit }: { controller: Controller; theme: Theme; product: string; detail: string; onQuit: () => void }) {
+  const [index, setIndex] = useState(0);
+  const [scroll, setScroll] = useState(0);
+  const [ref, size] = useMeasure();
 
-  const actions = createMemo<Action[]>(() => {
-    const list: Action[] = [];
-    if (c.githubRepo()) list.push({ label: "File an issue on GitHub", run: () => void c.beginGitHub() });
-    list.push({ label: "Copy issue", run: () => void c.copy() });
-    for (const link of c.config()?.links ?? []) list.push({ label: link.label, run: () => c.chooseLink(link) });
-    list.push({ label: "Quit", run: props.onQuit });
-    return list;
-  });
+  const actions: Action[] = [];
+  if (c.githubRepo()) actions.push({ label: "File an issue on GitHub", run: () => void c.beginGitHub() });
+  actions.push({ label: "Copy issue", run: () => void c.copy() });
+  for (const link of c.config()?.links ?? []) actions.push({ label: link.label, run: () => c.chooseLink(link) });
+  actions.push({ label: "Quit", run: onQuit });
 
-  useKeyboard((key) => {
+  const issue = c.issue();
+  const width = Math.max(size.width, 1);
+  const lines: Line[] = issue ? [...wrapSegments([{ text: issue.title, color: theme.text, bold: true }], width), [], ...renderMarkdown(issue.body, width, theme)] : [];
+  const page = Math.max(size.height, 1);
+  const maxScroll = Math.max(lines.length - page, 0);
+  const top = Math.min(scroll, maxScroll);
+
+  useKeys((key) => {
     if (c.modal() || c.screen() !== "result" || c.busy()) return;
+    const scrollBy = (rows: number) => setScroll(Math.min(Math.max(top + rows, 0), maxScroll));
     if (key.name === "left") setIndex((value) => Math.max(value - 1, 0));
-    else if (key.name === "right" || key.name === "tab") setIndex((value) => Math.min(value + 1, actions().length - 1));
-    else if (key.name === "up") scroll?.scrollBy(-1);
-    else if (key.name === "down") scroll?.scrollBy(1);
-    else if (key.name === "pageup") scroll?.scrollBy(-(scroll.height - 2));
-    else if (key.name === "pagedown" || key.name === "space") scroll?.scrollBy(scroll.height - 2);
-    else if (key.name === "return") actions()[index()]?.run();
+    else if (key.name === "right" || key.name === "tab") setIndex((value) => Math.min(value + 1, actions.length - 1));
+    else if (key.name === "up") scrollBy(-1);
+    else if (key.name === "down") scrollBy(1);
+    else if (key.name === "pageup") scrollBy(-(page - 2));
+    else if (key.name === "pagedown" || key.name === "space") scrollBy(page - 2);
+    else if (key.name === "home") scrollBy(-lines.length);
+    else if (key.name === "end") scrollBy(lines.length);
+    else if (key.name === "return") actions[index]?.run();
   });
 
+  const busy = c.busy();
   return (
-    <box flexDirection="column" flexGrow={1} gap={1}>
-      <Header theme={props.theme} product={props.product} detail={props.detail} />
-      <text fg={props.theme.success} attributes={BOLD}>
+    <Box flexDirection="column" flexGrow={1} gap={1}>
+      <Header theme={theme} product={product} detail={detail} />
+      <Text color={theme.success} bold>
         ✓ Issue ready
-      </text>
-      <box border borderStyle="single" borderColor={props.theme.faint} flexGrow={1} paddingX={2} paddingY={1}>
-        <scrollbox ref={(element: ScrollBoxRenderable) => (scroll = element)} flexGrow={1} scrollY stickyScroll={false} verticalScrollbarOptions={{ visible: false }}>
-          <text fg={props.theme.text} attributes={BOLD} marginBottom={1}>
-            {c.issue()?.title}
-          </text>
-          <markdown content={c.issue()?.body ?? ""} syntaxStyle={style} fg={props.theme.text} conceal />
-        </scrollbox>
-      </box>
-      <ButtonRow theme={props.theme} focused={!c.modal()} index={index()} items={actions().map((action) => ({ label: action.label }))} />
-      <Show when={c.busy()} fallback={<Hints theme={props.theme} hints={[["←→", "choose"], ["enter", "select"], ["↑↓", "scroll"], ["ctrl+c", "quit"]]} />}>
-        {(busy) => <text fg={props.theme.muted}>{busy()}</text>}
-      </Show>
-    </box>
+      </Text>
+      <Panel borderColor={theme.faint} backgroundColor={theme.background} flexGrow={1} paddingX={2} paddingY={1}>
+        <Box ref={ref} flexGrow={1} flexDirection="column" overflow="hidden">
+          {size.height > 0 && <Lines lines={lines.slice(top, top + page)} />}
+        </Box>
+      </Panel>
+      <ButtonRow theme={theme} focused={!c.modal()} index={index} items={actions.map((action) => ({ label: action.label }))} />
+      {busy ? (
+        <Text color={theme.muted}>{busy}</Text>
+      ) : (
+        <Hints
+          theme={theme}
+          hints={maxScroll > 0 ? [["←→", "choose"], ["enter", "select"], ["↑↓", "scroll"], ["ctrl+c", "quit"]] : [["←→", "choose"], ["enter", "select"], ["ctrl+c", "quit"]]}
+        />
+      )}
+    </Box>
   );
 }
 
 /** What went wrong: an error, a rejection by the agent, or a stop. */
-export function ErrorScreen(props: { controller: Controller; theme: Theme; product: string; detail: string; onQuit: () => void }) {
-  const c = props.controller;
-  const [index, setIndex] = createSignal(0);
+export function ErrorScreen({ controller: c, theme, product, detail, onQuit }: { controller: Controller; theme: Theme; product: string; detail: string; onQuit: () => void }) {
+  const [index, setIndex] = useState(0);
   const actions: Action[] = [
     { label: "Try again", run: () => c.tryAgain() },
-    { label: "Quit", run: props.onQuit },
+    { label: "Quit", run: onQuit },
   ];
 
-  useKeyboard((key) => {
+  useKeys((key) => {
     if (c.modal() || c.screen() !== "error") return;
     if (key.name === "left") setIndex(0);
     else if (key.name === "right" || key.name === "tab") setIndex(1);
-    else if (key.name === "return") actions[index()]!.run();
+    else if (key.name === "return") actions[index]!.run();
   });
 
   return (
-    <box flexDirection="column" flexGrow={1} gap={1}>
-      <Header theme={props.theme} product={props.product} detail={props.detail} />
-      <box flexDirection="column" flexGrow={1} gap={1}>
-        <text fg={props.theme.danger} attributes={BOLD}>
+    <Box flexDirection="column" flexGrow={1} gap={1}>
+      <Header theme={theme} product={product} detail={detail} />
+      <Box flexDirection="column" flexGrow={1} gap={1}>
+        <Text color={theme.danger} bold>
           ⚠ {c.error()?.title ?? "Error"}
-        </text>
-        <text fg={props.theme.text}>{c.error()?.message}</text>
-      </box>
-      <ButtonRow theme={props.theme} focused index={index()} items={actions.map((action) => ({ label: action.label }))} />
-      <Hints theme={props.theme} hints={[["←→", "choose"], ["enter", "select"], ["ctrl+c", "quit"]]} />
-    </box>
+        </Text>
+        <Text color={theme.text}>{c.error()?.message}</Text>
+      </Box>
+      <ButtonRow theme={theme} focused index={index} items={actions.map((action) => ({ label: action.label }))} />
+      <Hints theme={theme} hints={[["←→", "choose"], ["enter", "select"], ["ctrl+c", "quit"]]} />
+    </Box>
   );
 }

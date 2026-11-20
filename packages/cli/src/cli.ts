@@ -1,13 +1,7 @@
-#!/usr/bin/env bun
-import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { createCliRenderer } from "@opentui/core";
-import { render } from "@opentui/solid";
 import { buildLink, copyIssue, detectHarnesses, fileGitHubIssue, formatIssue, openUrl, resolveSource, runTriage } from "trissue-embedded";
-import { App } from "./tui/app.tsx";
 import { VERSION } from "./version.ts";
-import { createController } from "./tui/controller.ts";
 
 const HELP = `trissue: have a coding agent find the source of an issue and write it up.
 
@@ -142,35 +136,16 @@ async function interactive() {
     fail((error as Error).message);
   }
 
-  const renderer = await createCliRenderer({ exitOnCtrlC: false, backgroundColor: values.background ?? "#000000" });
-  const controller = createController({
-    source,
-    harnesses: detectHarnesses(),
-    background: values.background,
-    runInTerminal: async (command, args) => {
-      await renderer.suspend();
-      try {
-        const result = spawnSync(command, args, { stdio: "inherit" });
-        return result.status ?? 1;
-      } finally {
-        await renderer.resume();
-      }
-    },
-    copyFallback: (text) => renderer.copyToClipboardOSC52(text),
-  });
-
-  let quitting = false;
-  const quit = async () => {
-    if (quitting) return;
-    quitting = true;
-    try {
-      await controller.dispose();
-    } finally {
-      renderer.destroy();
-      process.exit(0);
-    }
-  };
-  process.once("SIGTERM", () => void quit());
-
-  await render(() => <App controller={controller} onQuit={() => void quit()} />, renderer);
+  // This is a terminal (checked above), so Ink should draw even when CI is
+  // set. Ink reads these once, when it loads; agents still get them after.
+  // Ink draws nothing until the end when it thinks it runs in CI.
+  const saved = ["CI", "CONTINUOUS_INTEGRATION"].map((name) => [name, process.env[name]] as const);
+  for (const [name] of saved) delete process.env[name];
+  let runInterface: typeof import("./tui/run.tsx").runInterface;
+  try {
+    ({ runInterface } = await import("./tui/run.tsx"));
+  } finally {
+    for (const [name, value] of saved) if (value !== undefined) process.env[name] = value;
+  }
+  await runInterface({ source, harnesses: detectHarnesses(), background: values.background });
 }

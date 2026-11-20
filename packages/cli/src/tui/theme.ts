@@ -39,10 +39,12 @@ export interface Theme {
   /** The "Use default model" checkmark. */
   check: string;
   product: string;
-  /** Modal scrim, drawn over the screen behind a modal. */
+  /** Modal scrim, drawn over the screen behind a modal. The last two digits are its opacity. */
   scrim: string;
   /** Background of a focused control. */
   focus: string;
+  /** Set on a veiled theme (see `veiled`): the scrim the colors are seen through. */
+  veil?: string;
 }
 
 /** The trust screen ignores the repository's config: nothing from the repo is shown styled before you trust it. */
@@ -81,4 +83,24 @@ export function themeFor(config: TrissueConfig | null, overrides: { background?:
 function luminance(hex: string): number {
   const [r, g, b] = parseHex(hex).map((channel) => channel / 255) as Rgb;
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/**
+ * The theme seen through the modal scrim: every color mixed toward the
+ * scrim's color by its opacity. The terminal can't blend cells, so the screen
+ * behind a modal is drawn with this theme instead.
+ */
+export function veiled(theme: Theme): Theme {
+  const out = { ...theme, veil: theme.scrim };
+  for (const key of Object.keys(theme) as (keyof Theme)[]) {
+    if (key !== "scrim" && key !== "veil") out[key] = paint(out, theme[key]!);
+  }
+  return out;
+}
+
+/** A color as the theme draws it: as is, or through the scrim when the theme is veiled. */
+export function paint(theme: Theme, color: string): string {
+  if (!theme.veil) return color;
+  const opacity = Number.parseInt(theme.veil.slice(7, 9) || "FF", 16) / 255;
+  return mix(color, theme.veil.slice(0, 7), opacity);
 }

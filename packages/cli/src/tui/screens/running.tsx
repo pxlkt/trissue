@@ -1,19 +1,12 @@
-import type { BoxRenderable, TextareaRenderable } from "@opentui/core";
-import { useKeyboard } from "@opentui/solid";
-import { createMemo, createSignal, For, onCleanup } from "solid-js";
+import { Box } from "ink";
+import { useEffect, useState } from "react";
 import type { TranscriptEntry } from "trissue-embedded";
-import { BOLD, Header, Hints, ITALIC, Spinner } from "../components.tsx";
+import { Header, Hints, Lines, Panel, Spinner, useMeasure, type Line } from "../components.tsx";
 import type { Controller } from "../controller.ts";
+import { useKeys } from "../keys.ts";
+import { TextArea } from "../textarea.tsx";
 import { mix, type Theme } from "../theme.ts";
 import { wrap } from "../wrap.ts";
-
-interface Segment {
-  text: string;
-  color: string;
-  attributes?: number;
-}
-
-type Line = Segment[];
 
 const ISSUE_MARKER = /<trissue-(issue|rejected)>[\s\S]*$/;
 
@@ -25,11 +18,11 @@ const TOP_BRIGHTNESS = 0.18;
 function entryLines(entry: TranscriptEntry, width: number, theme: Theme): Line[] {
   switch (entry.kind) {
     case "thought":
-      return wrap(entry.text.trim(), width - 2).map((line) => [{ text: `  ${line}`, color: theme.muted, attributes: ITALIC }]);
+      return wrap(entry.text.trim(), width - 2).map((line) => [{ text: `  ${line}`, color: theme.muted, italic: true }]);
     case "message": {
       const visible = entry.text.replace(ISSUE_MARKER, "").trim();
       const lines = visible ? wrap(visible, width).map((line): Line => [{ text: line, color: theme.text }]) : [];
-      if (ISSUE_MARKER.test(entry.text)) lines.push([{ text: "Writing the issue…", color: theme.text, attributes: BOLD }]);
+      if (ISSUE_MARKER.test(entry.text)) lines.push([{ text: "Writing the issue…", color: theme.text, bold: true }]);
       return lines;
     }
     case "tool": {
@@ -42,12 +35,12 @@ function entryLines(entry: TranscriptEntry, width: number, theme: Theme): Line[]
     }
     case "blocked":
       return wrap(entry.text, width - 10).map((line, index) => [
-        { text: index === 0 ? "⊘ Blocked " : "          ", color: theme.danger, attributes: BOLD },
+        { text: index === 0 ? "⊘ Blocked " : "          ", color: theme.danger, bold: true },
         { text: line, color: theme.muted },
       ]);
     case "steer":
       return wrap(entry.text, width - 6).map((line, index) => [
-        { text: index === 0 ? "You › " : "      ", color: theme.product, attributes: BOLD },
+        { text: index === 0 ? "You › " : "      ", color: theme.product, bold: true },
         { text: line, color: theme.text },
       ]);
     case "notice":
@@ -80,98 +73,62 @@ function formatElapsed(ms: number): string {
  * bottom and fade toward the top. There is no scrolling: this screen is to
  * watch, steer, or stop.
  */
-export function RunningScreen(props: { controller: Controller; theme: Theme; product: string; detail: string }) {
-  const c = props.controller;
-  const [size, setSize] = createSignal({ width: 80, height: 10 });
-  const [frame, setFrame] = createSignal(0);
-  const [now, setNow] = createSignal(Date.now());
-  let steerBox: TextareaRenderable | undefined;
+export function RunningScreen({ controller: c, theme, product, detail }: { controller: Controller; theme: Theme; product: string; detail: string }) {
+  const [ref, size] = useMeasure();
+  const [frame, setFrame] = useState(0);
+  const [steerText, setSteerText] = useState("");
 
-  const timer = setInterval(() => {
-    setFrame((value) => value + 1);
-    setNow(Date.now());
-  }, 80);
-  onCleanup(() => clearInterval(timer));
+  useEffect(() => {
+    const timer = setInterval(() => setFrame((value) => value + 1), 80);
+    return () => clearInterval(timer);
+  }, []);
 
-  useKeyboard((key) => {
-    if (c.screen() !== "running") return;
-    if (key.name === "escape") {
-      key.preventDefault();
-      c.stop();
-    }
+  useKeys((key) => {
+    if (c.screen() === "running" && !c.modal() && key.name === "escape") c.stop();
   });
 
-  const visible = createMemo(() => {
-    const { width, height } = size();
-    const lines = transcriptLines(c.entries(), width, props.theme).slice(-height);
-    const bright = Math.ceil(height * BRIGHT_SHARE);
-    // Lines are anchored to the bottom; distance is counted from the last line.
-    return lines.map((line, index) => {
-      const fromBottom = lines.length - 1 - index;
-      const fade = fromBottom < bright ? 1 : Math.max(TOP_BRIGHTNESS, 1 - ((fromBottom - bright) / Math.max(height - bright, 1)) * (1 - TOP_BRIGHTNESS));
-      return line.map((segment) => ({ ...segment, color: mix(props.theme.background, segment.color, fade) }));
-    });
+  const width = Math.max(size.width, 10);
+  const height = Math.max(size.height, 1);
+  const lines = transcriptLines(c.entries(), width, theme).slice(-height);
+  const bright = Math.ceil(height * BRIGHT_SHARE);
+  // Lines are anchored to the bottom; distance is counted from the last line.
+  const faded = lines.map((line, index) => {
+    const fromBottom = lines.length - 1 - index;
+    const fade = fromBottom < bright ? 1 : Math.max(TOP_BRIGHTNESS, 1 - ((fromBottom - bright) / Math.max(height - bright, 1)) * (1 - TOP_BRIGHTNESS));
+    return line.map((segment) => ({ ...segment, color: mix(theme.background, segment.color, fade) }));
   });
 
-  const status = () => {
-    const state = c.sessionState();
-    const name = state.status === "ready" ? state.session.harness.name : (c.harness()?.name ?? "The agent");
-    const model = state.status === "ready" ? state.session.currentModel?.name : undefined;
-    return `${name}${model ? ` · ${model}` : ""} is investigating · ${formatElapsed(now() - c.startedAt())}`;
-  };
+  const state = c.sessionState();
+  const name = state.status === "ready" ? state.session.harness.name : (c.harness()?.name ?? "The agent");
+  const model = state.status === "ready" ? state.session.currentModel?.name : undefined;
+  const status = `${name}${model ? ` · ${model}` : ""} is investigating · ${formatElapsed(Date.now() - c.startedAt())}`;
 
   return (
-    <box flexDirection="column" flexGrow={1} gap={1}>
-      <Header theme={props.theme} product={props.product} detail={props.detail} />
-      <box
-        flexGrow={1}
-        flexDirection="column"
-        justifyContent="flex-end"
-        overflow="hidden"
-        ref={(element: BoxRenderable) => {
-          const measure = () => setSize({ width: Math.max(element.width, 10), height: Math.max(element.height, 1) });
-          element.onSizeChange = measure;
-          queueMicrotask(measure);
-        }}
-      >
-        <For each={visible()}>
-          {(line) => (
-            <text height={1} flexShrink={0}>
-              {line.length === 0 ? " " : ""}
-              <For each={line}>{(segment) => <span style={{ fg: segment.color, bold: Boolean((segment.attributes ?? 0) & BOLD), italic: Boolean((segment.attributes ?? 0) & ITALIC) }}>{segment.text}</span>}</For>
-            </text>
-          )}
-        </For>
-      </box>
-      <box flexDirection="column" flexShrink={0}>
-        <Spinner theme={props.theme} frame={frame()} label={status()} />
-        <box border borderStyle="single" borderColor={props.theme.border} paddingX={1} marginTop={1} height={3}>
-          <textarea
-            ref={(element: TextareaRenderable) => (steerBox = element)}
+    <Box flexDirection="column" flexGrow={1} gap={1}>
+      <Header theme={theme} product={product} detail={detail} />
+      <Box ref={ref} flexGrow={1} flexDirection="column" justifyContent="flex-end" overflow="hidden">
+        {size.height > 0 && <Lines lines={faded} />}
+      </Box>
+      <Box flexDirection="column" flexShrink={0}>
+        <Spinner theme={theme} frame={frame} label={status} />
+        <Panel borderColor={theme.border} backgroundColor={theme.background} paddingX={1} marginTop={1} height={3}>
+          <TextArea
+            value={steerText}
+            onChange={setSteerText}
+            theme={theme}
             focused={!c.modal()}
             height={1}
-            wrapMode="none"
+            singleLine
             placeholder="Steer the model or press esc to stop..."
-            placeholderColor={props.theme.faint}
-            textColor={props.theme.text}
-            focusedTextColor={props.theme.text}
-            backgroundColor={props.theme.background}
-            focusedBackgroundColor={props.theme.background}
-            cursorColor={props.theme.text}
-            keyBindings={[
-              { name: "return", action: "submit" },
-              { name: "return", shift: true, action: "newline" },
-            ]}
             onSubmit={() => {
-              const text = steerBox?.plainText ?? "";
-              if (!text.trim()) return;
-              c.steer(text);
-              steerBox?.setText("");
+              if (!steerText.trim()) return;
+              c.steer(steerText);
+              setSteerText("");
             }}
           />
-        </box>
-      </box>
-      <Hints theme={props.theme} hints={[["enter", "steer"], ["esc", "stop"]]} />
-    </box>
+        </Panel>
+      </Box>
+      <Hints theme={theme} hints={[["enter", "steer"], ["esc", "stop"]]} />
+    </Box>
   );
 }

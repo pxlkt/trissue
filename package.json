@@ -5,13 +5,14 @@
   "workspaces": ["packages/*"],
   "scripts": {
     "build": "bun run --cwd packages/embedded build && bun run --cwd packages/cli build",
-    "start": "bun run --cwd packages/embedded build && bun packages/cli/src/cli.tsx",
+    "start": "bun run --cwd packages/embedded build && bun packages/cli/src/bin.ts",
     "typecheck": "tsc -p .",
     "screenshots": "bun run --cwd packages/embedded build && bun packages/cli/scripts/screenshots.tsx screenshots",
     "update-registry": "bun packages/embedded/scripts/update-registry.ts"
   },
   "devDependencies": {
     "@types/bun": "^1.4.5",
+    "@types/react": "^19.3.0",
     "typescript": "^7.0.2"
   }
 }

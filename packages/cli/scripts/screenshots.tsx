@@ -1,20 +1,25 @@
 /**
- * Renders every screen of the interface with OpenTUI's test renderer and
- * saves each one as a PNG, using headless Chrome to draw the captured cells.
+ * Renders every screen of the interface into a fake terminal and saves each
+ * one as a PNG, using headless Chrome to draw the captured frame.
  *
  *   bun scripts/screenshots.tsx <output folder>
  *
- * No agent runs: the controller is put into each state directly.
+ * No agent runs: the controller is put into each state directly, and keys go
+ * in through stdin as a terminal would send them.
  */
 import { $ } from "bun";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import type { CapturedFrame } from "@opentui/core";
-import { testRender } from "@opentui/solid";
+import { PassThrough, Writable } from "node:stream";
 import { Transcript, type AgentSession, type FetchedSource, type Harness, type TrissueConfig } from "trissue-embedded";
-import { App } from "../src/tui/app.tsx";
 import { createController, type Controller } from "../src/tui/controller.ts";
+
+// Ink picks its color depth when it loads; the screenshots want 24-bit color.
+process.env.FORCE_COLOR = "3";
+const { render } = await import("ink");
+const { App } = await import("../src/tui/app.tsx");
+const { ScreenSize } = await import("../src/tui/components.tsx");
 
 const outDir = resolve(process.argv[2] ?? "screenshots");
 const COLS = 110;
@@ -112,9 +117,12 @@ function transcriptEntries() {
   return transcript.entries;
 }
 
+/** Keys as a terminal sends them. */
+const KEYS = { tab: "\t", right: "\x1b[C", left: "\x1b[D", up: "\x1b[A", down: "\x1b[B" };
+
 interface Shot {
   name: string;
-  setup: (c: Controller, keys: Awaited<ReturnType<typeof testRender>>["mockInput"]) => Promise<void> | void;
+  setup: (c: Controller, type: (keys: string) => Promise<void>) => Promise<void> | void;
   config?: TrissueConfig | null;
 }
 
@@ -125,45 +133,40 @@ const SHOTS: Shot[] = [
   { name: "02-trust-no-config", config: null, setup: () => {} },
   {
     name: "03-compose",
-    setup: async (c, keys) => {
+    setup: async (c, type) => {
       c.setScreen("compose");
       await tick();
-      await keys.typeText(ISSUE_TEXT);
+      await type(ISSUE_TEXT);
     },
   },
   {
     name: "04-compose-agents",
-    setup: async (c, keys) => {
+    setup: async (c, type) => {
       c.setIssueText(ISSUE_TEXT);
       c.setScreen("compose");
       await tick();
-      keys.pressTab();
-      await tick();
-      keys.pressArrow("right");
+      await type(KEYS.tab);
+      await type(KEYS.right);
     },
   },
   {
     name: "05-compose-agents-antigravity",
-    setup: async (c, keys) => {
+    setup: async (c, type) => {
       c.setIssueText(ISSUE_TEXT);
       c.setScreen("compose");
       await tick();
-      keys.pressTab();
-      for (let i = 0; i < 5; i++) {
-        await tick();
-        keys.pressArrow("right");
-      }
+      await type(KEYS.tab);
+      for (let i = 0; i < 5; i++) await type(KEYS.right);
     },
   },
   {
     name: "06-compose-model",
-    setup: async (c, keys) => {
+    setup: async (c, type) => {
       c.setIssueText(ISSUE_TEXT);
       c.setScreen("compose");
       await tick();
-      keys.pressTab();
-      await tick();
-      keys.pressTab();
+      await type(KEYS.tab);
+      await type(KEYS.tab);
       c.debug.setSessionState({ status: "ready", harnessId: "claude", session: fakeSession(HARNESSES[0]!) });
     },
   },
@@ -179,14 +182,15 @@ const SHOTS: Shot[] = [
   },
   {
     name: "08-model-picker-search",
-    setup: async (c, keys) => {
+    setup: async (c, type) => {
       c.setIssueText(ISSUE_TEXT);
       c.setScreen("compose");
       c.debug.setSessionState({ status: "ready", harnessId: "claude", session: fakeSession(HARNESSES[0]!) });
       await tick();
       c.setModal({ name: "models" });
       await tick();
-      await keys.typeText("so");
+      await type("s");
+      await type("o");
     },
   },
   {
@@ -250,11 +254,11 @@ const SHOTS: Shot[] = [
   },
   {
     name: "16-copied",
-    setup: async (c, keys) => {
+    setup: async (c, type) => {
       c.debug.setIssue(ISSUE);
       c.setScreen("result");
       await tick();
-      keys.pressArrow("right");
+      await type(KEYS.right);
       c.showToast("Copied the issue.");
     },
   },
@@ -271,27 +275,83 @@ const SHOTS: Shot[] = [
   },
 ];
 
-function toHex(color: CapturedFrame["lines"][number]["spans"][number]["fg"], fallback: string): string {
-  const [r, g, b, a] = color.toInts();
-  if (a === 0) return fallback;
-  return `#${[r, g, b].map((value) => value.toString(16).padStart(2, "0")).join("")}`;
+/** A terminal that keeps the last frame Ink drew. Ink's debug mode writes whole frames. */
+function fakeTerminal() {
+  let frame = "";
+  const stdout = Object.assign(
+    new Writable({
+      write(chunk, _encoding, done) {
+        frame = chunk.toString();
+        done();
+      },
+    }),
+    { columns: COLS, rows: ROWS + 1, isTTY: true },
+  );
+  const stdin = Object.assign(new PassThrough(), { isTTY: true, setRawMode: () => stdin, ref: () => stdin, unref: () => stdin });
+  return { stdout, stdin, frame: () => frame };
+}
+
+interface Cell {
+  char: string;
+  fg: string;
+  bg: string;
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+}
+
+/** Reads the frame's SGR colors and styles into rows of cells. */
+function parseFrame(frame: string): Cell[][] {
+  return frame.split("\n").map((line) => {
+    const cells: Cell[] = [];
+    const style = { fg: "#ffffff", bg: "#000000", bold: false, italic: false, underline: false };
+    for (const part of line.split(/(\x1b\[[0-9;]*m)/)) {
+      const sgr = /^\x1b\[([0-9;]*)m$/.exec(part);
+      if (!sgr) {
+        for (const char of part) cells.push({ char, ...style });
+        continue;
+      }
+      const codes = sgr[1]!.split(";").map(Number);
+      for (let i = 0; i < codes.length; i++) {
+        const code = codes[i]!;
+        if (code === 0) Object.assign(style, { fg: "#ffffff", bg: "#000000", bold: false, italic: false, underline: false });
+        else if (code === 1) style.bold = true;
+        else if (code === 3) style.italic = true;
+        else if (code === 4) style.underline = true;
+        else if (code === 22) style.bold = false;
+        else if (code === 23) style.italic = false;
+        else if (code === 24) style.underline = false;
+        else if (code === 39) style.fg = "#ffffff";
+        else if (code === 49) style.bg = "#000000";
+        else if ((code === 38 || code === 48) && codes[i + 1] === 2) {
+          const hex = `#${codes
+            .slice(i + 2, i + 5)
+            .map((value) => value.toString(16).padStart(2, "0"))
+            .join("")}`;
+          if (code === 38) style.fg = hex;
+          else style.bg = hex;
+          i += 4;
+        }
+      }
+    }
+    return cells;
+  });
 }
 
 function escapeHtml(text: string): string {
   return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
 
-function frameToHtml(frame: CapturedFrame): string {
-  const rows = frame.lines
-    .map((line) => {
-      const cells = line.spans
-        .map((span) => {
-          const bold = span.attributes & 1 ? "font-weight:700;" : "";
-          const italic = span.attributes & 4 ? "font-style:italic;" : "";
-          return `<span style="color:${toHex(span.fg, "#ffffff")};background:${toHex(span.bg, "#000000")};${bold}${italic}">${escapeHtml(span.text)}</span>`;
+function frameToHtml(frame: string): string {
+  const rows = parseFrame(frame)
+    .map((cells) => {
+      const spans = cells
+        .map((cell) => {
+          const extra = `${cell.bold ? "font-weight:700;" : ""}${cell.italic ? "font-style:italic;" : ""}${cell.underline ? "text-decoration:underline;" : ""}`;
+          return `<span style="color:${cell.fg};background:${cell.bg};${extra}">${escapeHtml(cell.char)}</span>`;
         })
         .join("");
-      return `<div class="row">${cells}</div>`;
+      return `<div class="row">${spans}</div>`;
     })
     .join("");
   return `<!doctype html><meta charset="utf-8"><style>
@@ -320,17 +380,24 @@ try {
       dispose: async () => {},
     };
     const controller = createController({ source: fetched, harnesses: HARNESSES, fetched, config });
-    const setup = await testRender(() => <App controller={controller} onQuit={() => {}} />, { width: COLS, height: ROWS });
-    await setup.renderOnce();
-    await shot.setup(controller, setup.mockInput);
-    for (let i = 0; i < 6; i++) {
+    const terminal = fakeTerminal();
+    const instance = render(
+      <ScreenSize.Provider value={{ columns: COLS, rows: ROWS }}>
+        <App controller={controller} onQuit={() => {}} />
+      </ScreenSize.Provider>,
+      { stdout: terminal.stdout as unknown as NodeJS.WriteStream, stdin: terminal.stdin as unknown as NodeJS.ReadStream, debug: true, exitOnCtrlC: false, patchConsole: false },
+    );
+    const type = async (keys: string) => {
+      terminal.stdin.write(keys);
       await tick();
-      await setup.renderOnce();
-    }
-    const html = join(work, `${shot.name}.html`);
-    await writeFile(html, frameToHtml(setup.captureSpans()));
-    await setup.dispose();
-    controller.dispose();
+    };
+    await tick();
+    await shot.setup(controller, type);
+    // Let measured boxes settle: each measurement can take a render of its own.
+    for (let i = 0; i < 6; i++) await tick();
+    await writeFile(join(work, `${shot.name}.html`), frameToHtml(terminal.frame()));
+    instance.unmount();
+    await controller.dispose();
   }
 
   // Adwaita Mono is 0.5em wide plus spacing; measure it in the browser instead of guessing.

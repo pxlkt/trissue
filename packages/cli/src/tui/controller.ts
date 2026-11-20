@@ -1,4 +1,3 @@
-import { batch, createSignal } from "solid-js";
 import {
   startAgent,
   type AgentSession,
@@ -28,6 +27,7 @@ import {
   type TranscriptEntry,
   type TrissueConfig,
 } from "trissue-embedded";
+import { Store } from "./store.ts";
 
 export type Screen = "trust" | "compose" | "running" | "result" | "error";
 
@@ -67,24 +67,25 @@ export interface ControllerOptions {
 export type Controller = ReturnType<typeof createController>;
 
 export function createController(options: ControllerOptions) {
-  const [screen, setScreen] = createSignal<Screen>("trust");
-  const [modal, setModal] = createSignal<Modal | null>(null);
-  const [toast, setToastSignal] = createSignal<Toast | null>(null);
+  const store = new Store();
+  const [screen, setScreen] = store.value<Screen>("trust");
+  const [modal, setModal] = store.value<Modal | null>(null);
+  const [toast, setToastSignal] = store.value<Toast | null>(null);
 
-  const [fetched, setFetched] = createSignal<FetchedSource | null>(options.fetched ?? null);
-  const [fetchError, setFetchError] = createSignal<string | null>(null);
-  const [config, setConfig] = createSignal<TrissueConfig | null>(options.config ?? null);
+  const [fetched, setFetched] = store.value<FetchedSource | null>(options.fetched ?? null);
+  const [fetchError, setFetchError] = store.value<string | null>(null);
+  const [config, setConfig] = store.value<TrissueConfig | null>(options.config ?? null);
 
-  const [issueText, setIssueText] = createSignal("");
-  const [harnessIndex, setHarnessIndex] = createSignal(0);
-  const [modelId, setModelId] = createSignal<string | null>(null);
-  const [sessionState, setSessionState] = createSignal<SessionState>({ status: "idle" });
+  const [issueText, setIssueText] = store.value("");
+  const [harnessIndex, setHarnessIndex] = store.value(0);
+  const [modelId, setModelId] = store.value<string | null>(null);
+  const [sessionState, setSessionState] = store.value<SessionState>({ status: "idle" });
 
-  const [entries, setEntries] = createSignal<readonly TranscriptEntry[]>([], { equals: false });
-  const [startedAt, setStartedAt] = createSignal(0);
-  const [issue, setIssue] = createSignal<Issue | null>(null);
-  const [error, setError] = createSignal<{ title: string; message: string } | null>(null);
-  const [busy, setBusy] = createSignal<string | null>(null);
+  const [entries, setEntries] = store.value<readonly TranscriptEntry[]>([], { equals: false });
+  const [startedAt, setStartedAt] = store.value(0);
+  const [issue, setIssue] = store.value<Issue | null>(null);
+  const [error, setError] = store.value<{ title: string; message: string } | null>(null);
+  const [busy, setBusy] = store.value<string | null>(null);
 
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
   function showToast(text: string, tone: Toast["tone"] = "success") {
@@ -102,10 +103,8 @@ export function createController(options: ControllerOptions) {
           await source.dispose();
           throw error;
         });
-        batch(() => {
-          setFetched(source);
-          setConfig(loaded);
-        });
+        setFetched(source);
+        setConfig(loaded);
       } catch (error) {
         setFetchError((error as Error).message);
       }
@@ -126,11 +125,9 @@ export function createController(options: ControllerOptions) {
 
   function selectHarness(index: number) {
     if (index === harnessIndex()) return;
-    batch(() => {
-      closeSession();
-      setHarnessIndex(index);
-      setModelId(null);
-    });
+    closeSession();
+    setHarnessIndex(index);
+    setModelId(null);
   }
 
   /** Starts the selected agent, or returns the one already running for it. */
@@ -225,13 +222,11 @@ export function createController(options: ControllerOptions) {
     const source = fetched()!;
     const chosen = id ?? session.currentModel?.id ?? null;
     transcript = new Transcript();
-    batch(() => {
-      setModelId(chosen);
-      setModal(null);
-      setEntries([]);
-      setStartedAt(Date.now());
-      setScreen("running");
-    });
+    setModelId(chosen);
+    setModal(null);
+    setEntries([]);
+    setStartedAt(Date.now());
+    setScreen("running");
 
     const modelName = session.models.find((model) => model.id === chosen)?.name ?? chosen ?? undefined;
     try {
@@ -239,16 +234,12 @@ export function createController(options: ControllerOptions) {
         buildPrompt({ issue: issueText(), source, instructions: config()?.instructions, harnessName: session.harness.name, modelName }),
       );
       const parsed = parseIssue(text);
-      batch(() => {
-        setIssue(parsed);
-        setScreen("result");
-      });
+      setIssue(parsed);
+      setScreen("result");
     } catch (error) {
       const title = error instanceof StoppedError ? "Stopped" : error instanceof RejectedError ? "The agent rejected this task" : "Error";
-      batch(() => {
-        setError({ title, message: (error as Error).message });
-        setScreen("error");
-      });
+      setError({ title, message: (error as Error).message });
+      setScreen("error");
     } finally {
       // A session runs one investigation. Trying again starts a fresh one.
       closeSession();
@@ -267,11 +258,9 @@ export function createController(options: ControllerOptions) {
   }
 
   function tryAgain() {
-    batch(() => {
-      setError(null);
-      setIssue(null);
-      setScreen("compose");
-    });
+    setError(null);
+    setIssue(null);
+    setScreen("compose");
   }
 
   const githubRepo = () => {
@@ -359,6 +348,7 @@ export function createController(options: ControllerOptions) {
   }
 
   return {
+    store,
     options,
     screen,
     setScreen,
