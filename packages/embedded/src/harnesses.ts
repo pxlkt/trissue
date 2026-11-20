@@ -1,6 +1,7 @@
 import { accessSync, constants, existsSync, statSync } from "node:fs";
 import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { claudeLaunch } from "./claude-session.ts";
 import registry from "./registry.json" with { type: "json" };
 
 /** How a harness's name is drawn. Brand colors are fixed; repositories can't change them. */
@@ -23,6 +24,8 @@ export interface Harness {
   name: string;
   /** Null for harnesses without brand colors; they draw in the interface's text color. */
   brand: HarnessBrand | null;
+  /** "claude" drives `claude -p` directly; everything else speaks ACP. */
+  protocol: "acp" | "claude";
   /** The installed program trissue found. */
   executable: string;
   launch: LaunchSpec;
@@ -32,6 +35,7 @@ interface HarnessDefinition {
   id: string;
   name: string;
   brand: HarnessBrand | null;
+  protocol?: "acp" | "claude";
   /** Programs that mean the harness is installed. The first one found is used. */
   bins: string[];
   launch(executable: string): LaunchSpec;
@@ -49,11 +53,11 @@ function packageRoot(): string {
 }
 
 /**
- * The Claude and Codex ACP adapters ship inside trissue as single bundled
- * files, so installing trissue doesn't download a second copy of each CLI.
- * They run the CLI the user already has.
+ * The Codex ACP adapter ships inside trissue as one bundled file, so
+ * installing trissue doesn't download a second copy of Codex. It runs the
+ * `codex` the user already has.
  */
-function bundledAdapter(name: "claude" | "codex"): LaunchSpec {
+function bundledAdapter(name: "codex"): LaunchSpec {
   const file = join(packageRoot(), "dist", "adapters", `${name}.mjs`);
   if (!existsSync(file)) throw new Error(`The ${name} adapter is missing at ${file}. Run \`bun run build\`.`);
   // Electron runs scripts with its own binary only when ELECTRON_RUN_AS_NODE is set; Node and Bun ignore it.
@@ -65,11 +69,9 @@ const BUILT_IN: HarnessDefinition[] = [
     id: "claude",
     name: "Claude Code",
     brand: { color: ["#DE7356"], selectedText: "#B1ADA1" },
+    protocol: "claude",
     bins: ["claude"],
-    launch: (executable) => {
-      const spec = bundledAdapter("claude");
-      return { ...spec, env: { ...spec.env, CLAUDE_CODE_EXECUTABLE: executable } };
-    },
+    launch: claudeLaunch,
   },
   {
     id: "codex",
@@ -168,6 +170,7 @@ export function detectHarnesses(path?: string): Harness[] {
         id: definition.id,
         name: definition.name,
         brand: definition.brand,
+        protocol: definition.protocol ?? "acp",
         executable,
         get launch() {
           return definition.launch(executable);

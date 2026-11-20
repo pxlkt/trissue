@@ -1,4 +1,4 @@
-import { AgentSession, type AgentEvent } from "./agent.ts";
+import { startAgent, type AgentEvent, type AgentSession } from "./agent.ts";
 import { loadConfig, type TrissueConfig } from "./config.ts";
 import { detectHarnesses, type Harness } from "./harnesses.ts";
 import { parseIssue, type Issue } from "./issue.ts";
@@ -82,7 +82,7 @@ export async function runTriage(options: TriageOptions): Promise<TriageResult> {
   let session: AgentSession | null = null;
   try {
     const config = await loadConfig(source.dir);
-    session = await AgentSession.start({ harness, cwd: source.dir, onEvent: options.onEvent });
+    session = await startAgent({ harness, cwd: source.dir, onEvent: options.onEvent });
     const model = await chooseModel(session, config, options.model);
     const stop = () => session?.stop();
     options.signal?.addEventListener("abort", stop, { once: true });

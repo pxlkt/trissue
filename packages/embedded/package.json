@@ -1,0 +1,27 @@
+{
+  "name": "trissue-embedded",
+  "version": "0.1.0",
+  "description": "The trissue engine for apps: run the coding agent on the user's computer to investigate an issue and write it up.",
+  "keywords": ["issues", "bug report", "triage", "agent", "acp", "claude code", "codex"],
+  "license": "MIT",
+  "author": "Pxl",
+  "repository": { "type": "git", "url": "git+https://github.com/pxlkt/trissue.git", "directory": "packages/embedded" },
+  "homepage": "https://github.com/pxlkt/trissue#readme",
+  "bugs": "https://github.com/pxlkt/trissue/issues",
+  "type": "module",
+  "exports": {
+    ".": { "types": "./dist/types/index.d.ts", "default": "./dist/index.js" },
+    "./trissue.schema.json": "./trissue.schema.json"
+  },
+  "files": ["dist", "trissue.schema.json"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "bun scripts/build.ts"
+  },
+  "dependencies": {
+    "@agentclientprotocol/sdk": "2.8.0"
+  },
+  "devDependencies": {
+    "@agentclientprotocol/codex-acp": "2.8.0"
+  }
+}
