@@ -4,8 +4,21 @@ Have the coding agent already on your computer find the source of an issue and
 write it up, then file it, copy it, or send it wherever the project wants.
 
 ```sh
-bunx trissue MileniumHQ/Paperboard
+npx trissue MileniumHQ/Paperboard
 ```
+
+It runs on Node 20 or newer, or Bun, so use whichever runner you already have:
+
+```sh
+npx trissue MileniumHQ/Paperboard        # npm
+pnpm dlx trissue MileniumHQ/Paperboard   # pnpm
+yarn dlx trissue MileniumHQ/Paperboard   # Yarn 2 or newer
+bunx trissue MileniumHQ/Paperboard       # Bun
+```
+
+Yarn 4.18 and newer hold back packages for a day after they're published. If
+`yarn dlx` says a version is quarantined, use another runner or try again the
+next day.
 
 1. trissue downloads the repo and warns you before anything else: an agent is
    about to read it, so you should trust it.
@@ -132,7 +145,7 @@ into rows. trissue-embedded runs on Node 20+, Bun and Electron.
 
 | Package | What it is |
 |---|---|
-| [`trissue`](packages/cli) | The command and its terminal interface. Needs Bun 1.3.14 or newer. |
+| [`trissue`](packages/cli) | The command and its terminal interface. Runs on Node 20+ or Bun. |
 | [`trissue-embedded`](packages/embedded) | The engine: agents, config, prompts, sending. No interface. |
 
 ## Development
@@ -145,8 +158,9 @@ bun run screenshots      # renders every screen to screenshots/ (the README's ar
 bun run typecheck
 ```
 
-The interface is built with [OpenTUI](https://github.com/anomalyco/opentui)
-and Solid.
+The interface is built with [Ink](https://github.com/vadimdemedes/ink) and
+React, in plain JavaScript, so it runs anywhere Node 20+ or Bun does. Building
+and the screenshots use Bun.
 
 ## License
 
