@@ -23,7 +23,7 @@ It runs the agents you have installed and never downloads one.
 
 | Agent | Detected by | Runs |
 |---|---|---|
-| Claude Code | `claude` | the bundled Claude ACP adapter, with your `claude` |
+| Claude Code | `claude` | `claude -p`, driven directly over its stream-json protocol |
 | Codex | `codex` | the bundled Codex ACP adapter, with your `codex` |
 | Cursor | `cursor-agent` | `cursor-agent acp` |
 | Grok | `grok` | `grok agent stdio` |
@@ -31,16 +31,20 @@ It runs the agents you have installed and never downloads one.
 | Antigravity | `agy_acp_server.par` | `agy_acp_server.par` |
 | Everything else in the ACP registry | its program | its ACP command |
 
-The Claude and Codex adapters are bundled as single files (about 5 MB), so
-installing trissue doesn't also install a second copy of each CLI. The registry
-list is a snapshot in `src/core/registry.json`; `bun run update-registry`
-refreshes it.
+Claude Code has no native ACP, and its ACP adapter needs Anthropic's
+proprietary SDK plus a second copy of Claude Code, so trissue drives your
+`claude` directly instead. The Codex ACP adapter (Apache-2.0) ships inside
+trissue-embedded as one file, unmodified, with its notices. The registry list
+is a snapshot in `packages/embedded/src/registry.json`; `bun run
+update-registry` refreshes it.
 
 ### What the agent can do
 
-The agent may read and search the repo. trissue refuses every permission
-request to edit, delete, move, run, or fetch. Agents that have a read-only mode
-(Codex) start in it. The prompt also says the repo's instructions are
+The agent may read and search the repo. Claude Code only gets its Read, Grep
+and Glob tools: no shell, no MCP servers, and none of the repo's own `.claude`
+settings (so a repo can't add hooks). ACP agents get every permission request
+to edit, delete, move, run, or fetch refused, and start in their read-only
+mode when they have one (Codex does). The prompt also says the repo's instructions are
 untrusted: the agent checks them first and rejects the task if they ask for
 anything beyond writing the issue.
 
@@ -50,7 +54,7 @@ Put a `.trissue.json` at the repo root. Every field is optional.
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/pxlkt/trissue/main/trissue.schema.json",
+  "$schema": "https://unpkg.com/trissue-embedded/trissue.schema.json",
   "product": { "name": "Paperboard", "color": "#8AB4FF" },
   "background": "#000000",
   "prompt": "Explain the issue you're experiencing",
@@ -93,8 +97,14 @@ lists what's installed.
 
 ## In an app
 
+The engine is its own package, without the terminal interface:
+
+```sh
+npm install trissue-embedded
+```
+
 ```ts
-import { runTriage, detectHarnesses, fileGitHubIssue } from "trissue";
+import { runTriage, detectHarnesses, fileGitHubIssue } from "trissue-embedded";
 
 const agents = detectHarnesses(); // for your own picker
 const { issue, source } = await runTriage({
@@ -108,18 +118,30 @@ await source.dispose();
 ```
 
 For a step-by-step UI (pick a model after the agent starts, steer, stop), use
-`AgentSession` directly; `Transcript` turns its events into rows. The library
-runs on Node, Bun and Electron.
+`startAgent` and the `AgentSession` it returns; `Transcript` turns its events
+into rows. trissue-embedded runs on Node 20+, Bun and Electron.
+
+## Packages
+
+| Package | What it is |
+|---|---|
+| [`trissue`](packages/cli) | The command and its terminal interface. Needs Bun 1.3.14 or newer. |
+| [`trissue-embedded`](packages/embedded) | The engine: agents, config, prompts, sending. No interface. |
 
 ## Development
 
 ```sh
 bun install
-bun run build:adapters   # once, before running from source
-bun start <repo>         # the interface
+bun start <repo>         # builds the engine, then runs the interface from source
+bun run build            # builds both packages
 bun run screenshots      # renders every screen to screenshots/
 bun run typecheck
 ```
 
 The interface is built with [OpenTUI](https://github.com/anomalyco/opentui)
-and Solid, and needs Bun 1.3.14 or newer.
+and Solid.
+
+## License
+
+MIT. The bundled Codex adapter is Apache-2.0; see
+`dist/adapters/THIRD_PARTY_NOTICES.md` in trissue-embedded.

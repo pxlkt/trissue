@@ -16,7 +16,8 @@
     "skipLibCheck": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true
+    "noImplicitOverride": true,
+    "paths": { "trissue-embedded": ["./packages/embedded/src/index.ts"] }
   },
-  "include": ["src", "scripts", "test"]
+  "include": ["packages/*/src", "packages/*/scripts"]
 }

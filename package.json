@@ -1,44 +1,16 @@
 {
-  "name": "trissue",
-  "version": "0.1.0",
-  "description": "Have the coding agent on your computer find the source of an issue and write it up.",
-  "type": "module",
+  "name": "trissue-workspace",
   "private": true,
-  "bin": {
-    "trissue": "dist/cli.js"
-  },
-  "exports": {
-    ".": {
-      "types": "./dist/types/index.d.ts",
-      "default": "./dist/index.js"
-    }
-  },
-  "files": [
-    "dist",
-    "trissue.schema.json"
-  ],
-  "engines": {
-    "bun": ">=1.3.14"
-  },
+  "type": "module",
+  "workspaces": ["packages/*"],
   "scripts": {
-    "start": "bun src/cli.tsx",
-    "build": "bun scripts/build.ts",
-    "build:adapters": "bun scripts/build-adapters.ts",
+    "build": "bun run --cwd packages/embedded build && bun run --cwd packages/cli build",
+    "start": "bun run --cwd packages/embedded build && bun packages/cli/src/cli.tsx",
     "typecheck": "tsc -p .",
-    "test": "bun test",
-    "screenshots": "bun scripts/screenshots.tsx screenshots",
-    "update-registry": "bun scripts/update-registry.ts"
-  },
-  "dependencies": {
-    "@agentclientprotocol/sdk": "2.8.0",
-    "@opentui/core": "0.9.5",
-    "@opentui/solid": "0.9.5",
-    "solid-js": "1.9.12",
-    "string-width": "7.2.0"
+    "screenshots": "bun run --cwd packages/embedded build && bun packages/cli/scripts/screenshots.tsx screenshots",
+    "update-registry": "bun packages/embedded/scripts/update-registry.ts"
   },
   "devDependencies": {
-    "@agentclientprotocol/claude-agent-acp": "0.109.0",
-    "@agentclientprotocol/codex-acp": "2.8.0",
     "@types/bun": "^1.4.5",
     "typescript": "^7.0.2"
   }
