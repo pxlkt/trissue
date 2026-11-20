@@ -1,7 +1,7 @@
 import type { BoxRenderable, TextareaRenderable } from "@opentui/core";
 import { useKeyboard } from "@opentui/solid";
 import { createMemo, createSignal, For, onCleanup } from "solid-js";
-import type { TranscriptEntry } from "../../core/transcript.ts";
+import type { TranscriptEntry } from "trissue-embedded";
 import { BOLD, Header, Hints, ITALIC, Spinner } from "../components.tsx";
 import type { Controller } from "../controller.ts";
 import { mix, type Theme } from "../theme.ts";

@@ -1,4 +1,4 @@
-import type { TrissueConfig } from "../core/config.ts";
+import type { TrissueConfig } from "trissue-embedded";
 
 type Rgb = [number, number, number];
 

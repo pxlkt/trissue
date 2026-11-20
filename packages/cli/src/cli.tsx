@@ -4,12 +4,9 @@ import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { createCliRenderer } from "@opentui/core";
 import { render } from "@opentui/solid";
-import { formatIssue } from "./core/issue.ts";
-import { detectHarnesses } from "./core/harnesses.ts";
-import { buildLink, copyIssue, fileGitHubIssue, openUrl } from "./core/send.ts";
-import { resolveSource } from "./core/source.ts";
-import { runTriage } from "./core/triage.ts";
+import { buildLink, copyIssue, detectHarnesses, fileGitHubIssue, formatIssue, openUrl, resolveSource, runTriage } from "trissue-embedded";
 import { App } from "./tui/app.tsx";
+import { VERSION } from "./version.ts";
 import { createController } from "./tui/controller.ts";
 
 const HELP = `trissue: have a coding agent find the source of an issue and write it up.
@@ -34,7 +31,7 @@ Without the interface (all set from arguments)
   --yes                  Required with --send github: confirms filing a public issue
 `;
 
-const VERSION = "0.1.0";
+
 
 function fail(message: string): never {
   process.stderr.write(`trissue: ${message}\n`);

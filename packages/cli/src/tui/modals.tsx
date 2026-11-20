@@ -1,6 +1,6 @@
 import { useKeyboard } from "@opentui/solid";
 import { createMemo, createSignal, For, Match, Show, Switch, type JSX } from "solid-js";
-import { linkIncludesIssue } from "../core/send.ts";
+import { linkIncludesIssue } from "trissue-embedded";
 import { BOLD, ButtonRow, Hints, Modal } from "./components.tsx";
 import type { Controller, Modal as ModalState } from "./controller.ts";
 import type { Theme } from "./theme.ts";

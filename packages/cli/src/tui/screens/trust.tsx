@@ -1,6 +1,6 @@
 import { useKeyboard } from "@opentui/solid";
 import { Match, Show, Switch } from "solid-js";
-import { CONFIG_FILE } from "../../core/config.ts";
+import { CONFIG_FILE } from "trissue-embedded";
 import { BOLD, Hints } from "../components.tsx";
 import type { Controller } from "../controller.ts";
 import { BASE_THEME } from "../theme.ts";

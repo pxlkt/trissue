@@ -1,13 +1,33 @@
 import { batch, createSignal } from "solid-js";
-import { AgentSession, StoppedError } from "../core/agent.ts";
-import { loadConfig, type LinkTarget, type TrissueConfig } from "../core/config.ts";
-import type { Harness } from "../core/harnesses.ts";
-import { formatIssue, parseIssue, RejectedError, type Issue } from "../core/issue.ts";
-import { filterModels, hasModelFilter, isModelAllowed, type ModelOption } from "../core/models.ts";
-import { buildPrompt } from "../core/prompt.ts";
-import { GITHUB_LOGIN_ARGS, buildLink, copyIssue, fileGitHubIssue, gitHubStatus, openUrl } from "../core/send.ts";
-import { fetchSource, type FetchedSource, type RepoSource } from "../core/source.ts";
-import { Transcript, type TranscriptEntry } from "../core/transcript.ts";
+import {
+  startAgent,
+  type AgentSession,
+  GITHUB_LOGIN_ARGS,
+  RejectedError,
+  StoppedError,
+  Transcript,
+  buildLink,
+  buildPrompt,
+  copyIssue,
+  fetchSource,
+  fileGitHubIssue,
+  filterModels,
+  formatIssue,
+  gitHubStatus,
+  hasModelFilter,
+  isModelAllowed,
+  loadConfig,
+  openUrl,
+  parseIssue,
+  type FetchedSource,
+  type Harness,
+  type Issue,
+  type LinkTarget,
+  type ModelOption,
+  type RepoSource,
+  type TranscriptEntry,
+  type TrissueConfig,
+} from "trissue-embedded";
 
 export type Screen = "trust" | "compose" | "running" | "result" | "error";
 
@@ -125,7 +145,7 @@ export function createController(options: ControllerOptions) {
     const token = ++sessionToken;
     setSessionState({ status: "starting", harnessId: chosen.id });
     try {
-      const session = await AgentSession.start({ harness: chosen, cwd: source.dir, onEvent: onAgentEvent });
+      const session = await startAgent({ harness: chosen, cwd: source.dir, onEvent: onAgentEvent });
       if (token !== sessionToken) {
         session.close();
         return null;

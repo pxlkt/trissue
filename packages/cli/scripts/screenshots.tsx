@@ -12,11 +12,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { CapturedFrame } from "@opentui/core";
 import { testRender } from "@opentui/solid";
-import type { AgentSession } from "../src/core/agent.ts";
-import type { TrissueConfig } from "../src/core/config.ts";
-import type { Harness } from "../src/core/harnesses.ts";
-import type { FetchedSource } from "../src/core/source.ts";
-import { Transcript } from "../src/core/transcript.ts";
+import { Transcript, type AgentSession, type FetchedSource, type Harness, type TrissueConfig } from "trissue-embedded";
 import { App } from "../src/tui/app.tsx";
 import { createController, type Controller } from "../src/tui/controller.ts";
 
@@ -25,7 +21,7 @@ const COLS = 110;
 const ROWS = 34;
 
 function harness(id: string, name: string, brand: Harness["brand"]): Harness {
-  return { id, name, brand, executable: `/usr/bin/${id}`, launch: { command: "/usr/bin/true", args: [], env: {} } };
+  return { id, name, brand, protocol: "acp", executable: `/usr/bin/${id}`, launch: { command: "/usr/bin/true", args: [], env: {} } };
 }
 
 const HARNESSES: Harness[] = [

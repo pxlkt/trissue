@@ -1,6 +1,6 @@
 import { TextAttributes } from "@opentui/core";
 import { For, Show, type JSX } from "solid-js";
-import type { HarnessBrand } from "../core/harnesses.ts";
+import type { HarnessBrand } from "trissue-embedded";
 import { gradientAt, type Theme } from "./theme.ts";
 
 export const BOLD = TextAttributes.BOLD;
