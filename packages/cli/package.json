@@ -20,6 +20,6 @@
     "@opentui/solid": "0.9.5",
     "solid-js": "1.9.12",
     "string-width": "7.2.0",
-    "trissue-embedded": "workspace:*"
+    "trissue-embedded": "0.1.0"
   }
 }

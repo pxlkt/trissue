@@ -8,6 +8,12 @@ process.chdir(root);
 
 const pkg = await Bun.file("package.json").json();
 if (pkg.version !== VERSION) throw new Error(`src/version.ts says ${VERSION}, package.json says ${pkg.version}.`);
+// A plain version, not workspace:*, so npm can install what `npm pack` makes.
+// Bun links the workspace as long as the versions match.
+const embedded = await Bun.file("../embedded/package.json").json();
+if (pkg.dependencies["trissue-embedded"] !== embedded.version) {
+  throw new Error(`package.json depends on trissue-embedded ${pkg.dependencies["trissue-embedded"]}, but packages/embedded is ${embedded.version}.`);
+}
 
 await $`rm -rf dist`;
 const external = ["@opentui/core", "@opentui/solid", "solid-js", "string-width", "trissue-embedded"];
