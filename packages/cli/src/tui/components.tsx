@@ -119,10 +119,24 @@ export function Header({ theme, product, detail }: { theme: Theme; product: stri
   );
 }
 
-/** Key hints along the bottom of the frame, like "enter continue · esc quit". */
-export function Hints({ theme, hints }: { theme: Theme; hints: [string, string][] }) {
+/**
+ * Rows of styled text, each centered on its own. For screens with little on
+ * them, where text hugging the left edge leaves the rest of the frame empty.
+ */
+export function CenteredLines({ lines }: { lines: Line[] }) {
   return (
-    <Box flexShrink={0}>
+    <Box flexDirection="column" alignItems="center" flexShrink={0}>
+      {lines.map((line, index) => (
+        <Text key={index}>{line.length === 0 ? " " : line.map((segment, part) => <SegmentText key={part} segment={segment} />)}</Text>
+      ))}
+    </Box>
+  );
+}
+
+/** Key hints along the bottom of the frame, like "enter continue · esc quit". */
+export function Hints({ theme, hints, centered = false }: { theme: Theme; hints: [string, string][]; centered?: boolean }) {
+  return (
+    <Box flexShrink={0} justifyContent={centered ? "center" : "flex-start"}>
       <Text>
         {hints.map(([key, label], index) => (
           <Fragment key={key + label}>
@@ -169,14 +183,16 @@ export function ButtonRow({
   items,
   index,
   focused,
+  centered = false,
 }: {
   theme: Theme;
   items: { label: string; prefix?: { text: string; color: string } }[];
   index: number;
   focused: boolean;
+  centered?: boolean;
 }) {
   return (
-    <Box flexDirection="row" flexWrap="wrap" columnGap={2} flexShrink={0}>
+    <Box flexDirection="row" flexWrap="wrap" columnGap={2} flexShrink={0} justifyContent={centered ? "center" : "flex-start"}>
       {items.map((item, position) => {
         const active = focused && position === index;
         const inverted = { color: theme.background, backgroundColor: theme.focus };

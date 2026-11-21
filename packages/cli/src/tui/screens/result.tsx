@@ -1,10 +1,11 @@
 import { Box, Text } from "ink";
 import { useState } from "react";
-import { ButtonRow, Header, Hints, Lines, Panel, useMeasure, type Line } from "../components.tsx";
+import { ButtonRow, CenteredLines, Header, Hints, Lines, Panel, useFrameSize, useMeasure, type Line } from "../components.tsx";
 import type { Controller } from "../controller.ts";
 import { useKeys } from "../keys.ts";
 import { renderMarkdown, wrapSegments } from "../markdown.ts";
 import type { Theme } from "../theme.ts";
+import { CENTERED_TEXT_WIDTH } from "./trust.tsx";
 
 type Action = { label: string; run: () => void };
 
@@ -69,6 +70,7 @@ export function ResultScreen({ controller: c, theme, product, detail, onQuit }: 
 /** What went wrong: an error, a rejection by the agent, or a stop. */
 export function ErrorScreen({ controller: c, theme, product, detail, onQuit }: { controller: Controller; theme: Theme; product: string; detail: string; onQuit: () => void }) {
   const [index, setIndex] = useState(0);
+  const width = Math.min(useFrameSize().width, CENTERED_TEXT_WIDTH);
   const actions: Action[] = [
     { label: "Try again", run: () => c.tryAgain() },
     { label: "Quit", run: onQuit },
@@ -84,14 +86,12 @@ export function ErrorScreen({ controller: c, theme, product, detail, onQuit }: {
   return (
     <Box flexDirection="column" flexGrow={1} gap={1}>
       <Header theme={theme} product={product} detail={detail} />
-      <Box flexDirection="column" flexGrow={1} gap={1}>
-        <Text color={theme.danger} bold>
-          ⚠ {c.error()?.title ?? "Error"}
-        </Text>
-        <Text color={theme.text}>{c.error()?.message}</Text>
+      <Box flexDirection="column" flexGrow={1} justifyContent="center" gap={1}>
+        <CenteredLines lines={wrapSegments([{ text: `⚠ ${c.error()?.title ?? "Error"}`, color: theme.danger, bold: true }], width)} />
+        <CenteredLines lines={wrapSegments([{ text: c.error()?.message ?? "", color: theme.text }], width)} />
       </Box>
-      <ButtonRow theme={theme} focused index={index} items={actions.map((action) => ({ label: action.label }))} />
-      <Hints theme={theme} hints={[["←→", "choose"], ["enter", "select"], ["ctrl+c", "quit"]]} />
+      <ButtonRow theme={theme} focused centered index={index} items={actions.map((action) => ({ label: action.label }))} />
+      <Hints theme={theme} centered hints={[["←→", "choose"], ["enter", "select"], ["ctrl+c", "quit"]]} />
     </Box>
   );
 }
