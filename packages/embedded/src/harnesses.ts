@@ -68,7 +68,7 @@ const BUILT_IN: HarnessDefinition[] = [
   {
     id: "claude",
     name: "Claude Code",
-    brand: { color: ["#DE7356"], selectedText: "#B1ADA1" },
+    brand: { color: ["#DE7356"], selectedText: "#262625" },
     protocol: "claude",
     bins: ["claude"],
     launch: claudeLaunch,
