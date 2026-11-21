@@ -1,6 +1,6 @@
 {
   "name": "trissue",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Have the coding agent on your computer find the source of an issue and write it up.",
   "keywords": ["issues", "bug report", "triage", "agent", "acp", "claude code", "codex", "tui"],
   "license": "MIT",
