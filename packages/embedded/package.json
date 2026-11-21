@@ -1,6 +1,6 @@
 {
   "name": "trissue-embedded",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "The trissue engine for apps: run the coding agent on the user's computer to investigate an issue and write it up.",
   "keywords": ["issues", "bug report", "triage", "agent", "acp", "claude code", "codex"],
   "license": "MIT",
