@@ -1,6 +1,7 @@
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import type { LinkTarget } from "./config.ts";
+import { childEnv } from "./env.ts";
 import { findExecutable } from "./harnesses.ts";
 import { formatIssue, type Issue } from "./issue.ts";
 
@@ -20,12 +21,12 @@ export async function gitHubStatus(): Promise<GitHubStatus> {
   const gh = findExecutable("gh");
   if (!gh) return { state: "missing" };
   try {
-    await exec(gh, ["auth", "status", "--hostname", "github.com"]);
+    await exec(gh, ["auth", "status", "--hostname", "github.com"], { env: childEnv() });
   } catch {
     // quiet: a non-zero exit is how gh says nobody is signed in; the caller shows the sign-in step.
     return { state: "signed-out" };
   }
-  const { stdout } = await exec(gh, ["api", "user", "--jq", ".login"]);
+  const { stdout } = await exec(gh, ["api", "user", "--jq", ".login"], { env: childEnv() });
   return { state: "signed-in", login: stdout.trim() };
 }
 
@@ -42,13 +43,13 @@ export async function fileGitHubIssue(repo: string, issue: Issue, labels: string
 
   const args = ["issue", "create", "--repo", repo, "--title", issue.title, "--body-file", "-"];
   if (labels.length) {
-    const { stdout } = await exec(gh, ["label", "list", "--repo", repo, "--limit", "1000", "--json", "name", "--jq", ".[].name"]);
+    const { stdout } = await exec(gh, ["label", "list", "--repo", repo, "--limit", "1000", "--json", "name", "--jq", ".[].name"], { env: childEnv() });
     const existing = new Set(stdout.split("\n").map((name) => name.trim().toLowerCase()));
     for (const label of labels) if (existing.has(label.toLowerCase())) args.push("--label", label);
   }
 
   return new Promise((resolve, reject) => {
-    const child = spawn(gh, args, { stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn(gh, args, { stdio: ["pipe", "pipe", "pipe"], env: childEnv() });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk) => (stdout += chunk));
@@ -95,7 +96,7 @@ export async function copyText(text: string): Promise<void> {
   const [bin, args] = command;
   await new Promise<void>((resolve, reject) => {
     // wl-copy stays running to serve the clipboard, so its output is ignored and only its start is awaited.
-    const child = spawn(bin, args, { stdio: ["pipe", "ignore", "pipe"], detached: process.platform !== "win32" });
+    const child = spawn(bin, args, { stdio: ["pipe", "ignore", "pipe"], env: childEnv(), detached: process.platform !== "win32" });
     let stderr = "";
     child.stderr!.on("data", (chunk) => (stderr += chunk));
     child.once("error", (error) => reject(new SendError(`Couldn't copy: ${error.message}`)));
@@ -129,7 +130,7 @@ export async function openUrl(url: string): Promise<void> {
     process.platform === "darwin" ? ["open", [url]] : process.platform === "win32" ? ["cmd", ["/c", "start", "", url]] : ["xdg-open", [url]];
   if (!findExecutable(bin as string)) throw new SendError(`Can't open links: ${bin} isn't installed.`);
   await new Promise<void>((resolve, reject) => {
-    const child = spawn(bin as string, args as string[], { stdio: "ignore", detached: true });
+    const child = spawn(bin as string, args as string[], { stdio: "ignore", env: childEnv(), detached: true });
     child.once("error", (error) => reject(new SendError(`Couldn't open the link: ${error.message}`)));
     child.once("spawn", () => {
       child.unref();

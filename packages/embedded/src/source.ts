@@ -5,6 +5,8 @@ import { tmpdir, homedir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { promisify } from "node:util";
 
+import { childEnv } from "./env.ts";
+
 const exec = promisify(execFile);
 
 /** Where the repository being triaged comes from. */
@@ -59,7 +61,7 @@ export async function resolveSource(spec: string | undefined, ref?: string): Pro
     if (ref) throw new SourceError("A ref can only be given for a repository that is downloaded.");
     let remote: ReturnType<typeof parseRemote> = null;
     try {
-      const { stdout } = await exec("git", ["-C", local, "remote", "get-url", "origin"]);
+      const { stdout } = await exec("git", ["-C", local, "remote", "get-url", "origin"], { env: childEnv() });
       remote = parseRemote(stdout.trim());
     } catch {
       // quiet: a folder without a git remote is still a valid local source; it is named after the folder.
@@ -89,7 +91,7 @@ export async function resolveSource(spec: string | undefined, ref?: string): Pro
 
 async function headCommit(dir: string): Promise<string> {
   try {
-    const { stdout } = await exec("git", ["-C", dir, "rev-parse", "HEAD"]);
+    const { stdout } = await exec("git", ["-C", dir, "rev-parse", "HEAD"], { env: childEnv() });
     return stdout.trim();
   } catch {
     // quiet: a local folder that isn't a git repository has no commit; the prompt says so.
@@ -110,7 +112,7 @@ export async function fetchSource(source: RepoSource): Promise<FetchedSource> {
   args.push("--", source.url!, dir);
   try {
     await exec("git", args, {
-      env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_LFS_SKIP_SMUDGE: "1" },
+      env: childEnv({ GIT_TERMINAL_PROMPT: "0", GIT_LFS_SKIP_SMUDGE: "1" }),
       timeout: 120_000,
     });
   } catch (error) {

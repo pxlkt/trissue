@@ -2,6 +2,7 @@ import { accessSync, constants, existsSync, statSync } from "node:fs";
 import { basename, delimiter, dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { claudeLaunch } from "./claude-session.ts";
+import { userPath } from "./env.ts";
 import registry from "./registry.json" with { type: "json" };
 
 /** How a harness's name is drawn. Brand colors are fixed; repositories can't change them. */
@@ -147,8 +148,8 @@ function isExecutable(path: string): boolean {
   }
 }
 
-/** Looks a program up on PATH, like `which`. */
-export function findExecutable(name: string, path = process.env.PATH ?? ""): string | null {
+/** Looks a program up on the user's PATH (see `userPath`), like `which`. */
+export function findExecutable(name: string, path = userPath()): string | null {
   const extensions = process.platform === "win32" ? (process.env.PATHEXT ?? ".EXE;.CMD;.BAT").split(";") : [""];
   for (const dir of path.split(delimiter)) {
     if (!dir) continue;

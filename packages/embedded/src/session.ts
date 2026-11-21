@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { childEnv } from "./env.ts";
 import type { Harness, LaunchSpec } from "./harnesses.ts";
 import type { ModelOption } from "./models.ts";
 import { buildRefusedPrompt, buildSteerPrompt } from "./prompt.ts";
@@ -48,7 +49,7 @@ export interface AgentProcess {
 }
 
 export function spawnAgent(name: string, spec: LaunchSpec, cwd: string): AgentProcess {
-  const child = spawn(spec.command, spec.args, { cwd, env: { ...process.env, ...spec.env }, stdio: ["pipe", "pipe", "pipe"] });
+  const child = spawn(spec.command, spec.args, { cwd, env: childEnv(spec.env), stdio: ["pipe", "pipe", "pipe"] });
   let stderr = "";
   child.stderr!.setEncoding("utf8");
   child.stderr!.on("data", (chunk: string) => {

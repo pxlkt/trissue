@@ -51,6 +51,11 @@ Sending: `fileGitHubIssue`, `gitHubStatus`, `copyIssue`, `buildLink` and
 `openUrl`. The `.trissue.json` schema ships as
 `trissue-embedded/trissue.schema.json`.
 
+Apps opened from the macOS Dock or a Linux desktop menu get a bare PATH, so
+trissue looks agents up on the user's login-shell PATH plus the usual install
+folders (Homebrew, `~/.local/bin`, …) and runs them with it. `userPath()`
+returns that PATH. On Windows the PATH is used as it is.
+
 See the [trissue README](https://github.com/pxlkt/trissue#readme) for the
 config file, the agents, and what the agent is allowed to do.
 
