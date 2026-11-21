@@ -1,6 +1,5 @@
 import type { ChildProcess } from "node:child_process";
-import { Readable, Writable } from "node:stream";
-import * as acp from "@agentclientprotocol/sdk";
+import * as acp from "./acp.ts";
 import type { ModelOption } from "./models.ts";
 import { AgentError, AgentSession, spawnAgent, type AgentEvent, type StartOptions, type TurnEnd } from "./session.ts";
 import { VERSION } from "./version.ts";
@@ -37,7 +36,7 @@ export class AcpSession extends AgentSession {
     models: ModelOption[],
     modelId: string | undefined,
     private readonly child: ChildProcess,
-    private readonly connection: acp.ClientConnection,
+    private readonly connection: acp.Connection,
     private readonly sessionId: string,
     private readonly exited: Promise<never>,
     private readonly modelSetter: ((id: string) => Promise<void>) | null,
@@ -53,46 +52,48 @@ export class AcpSession extends AgentSession {
     const emit = (event: AgentEvent) => forward(event);
 
     const { child, exited } = spawnAgent(harness.name, options.launch ?? harness.launch, options.cwd);
-    const stream = acp.ndJsonStream(
-      Writable.toWeb(child.stdin!) as WritableStream<Uint8Array>,
-      Readable.toWeb(child.stdout!) as unknown as ReadableStream<Uint8Array>,
-    );
-
-    const connection = acp
-      .client({ name: "trissue" })
-      .onNotification(acp.methods.client.session.update, (context) => {
-        const update = context.params.update;
+    const connection = new acp.Connection(child.stdin!, child.stdout!, {
+      onNotification(method, params: { update: acp.SessionUpdate }) {
+        if (method !== "session/update") return;
+        const update = params.update;
         switch (update.sessionUpdate) {
           case "agent_message_chunk":
-          case "agent_thought_chunk":
-            if (update.content.type === "text") {
-              emit({ type: "text", channel: update.sessionUpdate === "agent_message_chunk" ? "message" : "thought", text: update.content.text });
+          case "agent_thought_chunk": {
+            const { content } = update as Extract<acp.SessionUpdate, { content: unknown }>;
+            if (content.type === "text" && "text" in content) {
+              emit({ type: "text", channel: update.sessionUpdate === "agent_message_chunk" ? "message" : "thought", text: content.text });
             }
             break;
-          case "tool_call":
-            emit({ type: "tool", id: update.toolCallId, title: update.title, kind: update.kind ?? "other", status: update.status ?? "pending" });
+          }
+          case "tool_call": {
+            const call = update as Extract<acp.SessionUpdate, { sessionUpdate: "tool_call" }>;
+            emit({ type: "tool", id: call.toolCallId, title: call.title, kind: call.kind ?? "other", status: call.status ?? "pending" });
             break;
-          case "tool_call_update":
-            emit({ type: "tool", id: update.toolCallId, title: update.title ?? "", kind: update.kind ?? "", status: update.status ?? "" });
+          }
+          case "tool_call_update": {
+            const call = update as Extract<acp.SessionUpdate, { sessionUpdate: "tool_call_update" }>;
+            emit({ type: "tool", id: call.toolCallId, title: call.title ?? "", kind: call.kind ?? "", status: call.status ?? "" });
             break;
+          }
         }
-      })
-      .onRequest(acp.methods.client.session.requestPermission, (context) => {
-        const { toolCall, options: choices } = context.params;
+      },
+      onRequest(method, params: acp.RequestPermissionParams): acp.RequestPermissionResponse | undefined {
+        if (method !== "session/request_permission") return undefined;
+        const { toolCall, options: choices } = params;
         const kind = toolCall.kind ?? "other";
         const allow = SAFE_KINDS.has(kind);
         const choice = choices.find((option) => option.kind === (allow ? "allow_once" : "reject_once"));
         if (!allow) emit({ type: "blocked", id: toolCall.toolCallId, title: toolCall.title ?? kind, kind });
         return choice ? { outcome: { outcome: "selected", optionId: choice.optionId } } : { outcome: { outcome: "cancelled" } };
-      })
-      .connect(stream);
+      },
+    });
     exited.catch((error) => connection.close(error));
 
     const race = <T>(promise: Promise<T>) => Promise.race([promise, exited]);
 
     try {
       const init = await race(
-        connection.agent.request(acp.methods.agent.initialize, {
+        connection.request<acp.InitializeResponse>("initialize", {
           protocolVersion: acp.PROTOCOL_VERSION,
           clientCapabilities: {},
           clientInfo: { name: "trissue", version: VERSION },
@@ -101,7 +102,7 @@ export class AcpSession extends AgentSession {
 
       let session: acp.NewSessionResponse;
       try {
-        session = await race(connection.agent.request(acp.methods.agent.session.new, { cwd: options.cwd, mcpServers: [] }));
+        session = await race(connection.request<acp.NewSessionResponse>("session/new", { cwd: options.cwd, mcpServers: [] }));
       } catch (error) {
         if (error instanceof acp.RequestError && error.code === -32000) {
           const methods = init.authMethods?.map((method) => method.name).join(", ");
@@ -111,19 +112,18 @@ export class AcpSession extends AgentSession {
       }
 
       const sessionId = session.sessionId;
-      const request = <M extends acp.AgentRequestMethod>(method: M, params: acp.AgentRequestParamsByMethod[M]) =>
-        race(connection.agent.request(method, params));
+      const request = (method: string, params: unknown) => race(connection.request(method, params));
 
       // Prefer a read-only mode when the agent has one. Permission requests are refused either way.
       const modeOption = session.configOptions?.find((option) => option.category === "mode" && option.type === "select");
       if (modeOption?.type === "select") {
         const readOnly = flattenOptions(modeOption.options).find((option) => READ_ONLY_MODE.test(option.id) || READ_ONLY_MODE.test(option.name));
         if (readOnly && modeOption.currentValue !== readOnly.id) {
-          await request(acp.methods.agent.session.setConfigOption, { sessionId, configId: modeOption.id, value: readOnly.id });
+          await request("session/set_config_option", { sessionId, configId: modeOption.id, value: readOnly.id });
         }
       } else if (session.modes) {
         const mode = session.modes.availableModes.find((option) => READ_ONLY_MODE.test(option.id) || READ_ONLY_MODE.test(option.name));
-        if (mode && mode.id !== session.modes.currentModeId) await request(acp.methods.agent.session.setMode, { sessionId, modeId: mode.id });
+        if (mode && mode.id !== session.modes.currentModeId) await request("session/set_mode", { sessionId, modeId: mode.id });
       }
 
       let models: ModelOption[] = [];
@@ -135,13 +135,13 @@ export class AcpSession extends AgentSession {
         models = flattenOptions(modelOption.options);
         modelId = modelOption.currentValue;
         setModel = async (id) => {
-          await request(acp.methods.agent.session.setConfigOption, { sessionId, configId: modelOption.id, value: id });
+          await request("session/set_config_option", { sessionId, configId: modelOption.id, value: id });
         };
       } else if (unstable) {
         models = unstable.availableModels.map((model) => ({ id: model.modelId, name: model.name, description: model.description ?? undefined }));
         modelId = unstable.currentModelId;
         setModel = async (id) => {
-          await race(connection.agent.request("session/set_model", { sessionId, modelId: id }));
+          await request("session/set_model", { sessionId, modelId: id });
         };
       }
 
@@ -157,7 +157,7 @@ export class AcpSession extends AgentSession {
 
   protected async promptTurn(text: string): Promise<TurnEnd> {
     const response = await Promise.race([
-      this.connection.agent.request(acp.methods.agent.session.prompt, { sessionId: this.sessionId, prompt: [{ type: "text", text }] }),
+      this.connection.request<acp.PromptResponse>("session/prompt", { sessionId: this.sessionId, prompt: [{ type: "text", text }] }),
       this.exited,
     ]);
     switch (response.stopReason) {
@@ -175,7 +175,7 @@ export class AcpSession extends AgentSession {
   }
 
   protected cancelTurn(): void {
-    void this.connection.agent.notify(acp.methods.agent.session.cancel, { sessionId: this.sessionId });
+    this.connection.notify("session/cancel", { sessionId: this.sessionId });
   }
 
   protected async applyModel(id: string): Promise<void> {

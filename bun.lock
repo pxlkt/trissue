@@ -27,10 +27,6 @@
     "packages/embedded": {
       "name": "trissue-embedded",
       "version": "0.1.2",
-      "dependencies": {
-        "@agentclientprotocol/sdk": "2.8.0",
-        "zod": "^4.0.0",
-      },
       "devDependencies": {
         "@agentclientprotocol/codex-acp": "2.8.0",
       },

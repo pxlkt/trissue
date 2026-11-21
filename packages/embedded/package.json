@@ -18,10 +18,6 @@
   "scripts": {
     "build": "bun scripts/build.ts"
   },
-  "dependencies": {
-    "@agentclientprotocol/sdk": "2.8.0",
-    "zod": "^4.0.0"
-  },
   "devDependencies": {
     "@agentclientprotocol/codex-acp": "2.8.0"
   }

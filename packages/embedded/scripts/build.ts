@@ -16,7 +16,7 @@ if (pkg.version !== VERSION) throw new Error(`src/version.ts says ${VERSION}, pa
 await $`rm -rf dist`;
 await $`bun scripts/build-adapters.ts`;
 
-const lib = await Bun.build({ entrypoints: ["src/index.ts"], target: "node", outdir: "dist", naming: "index.js", external: ["@agentclientprotocol/sdk"] });
+const lib = await Bun.build({ entrypoints: ["src/index.ts"], target: "node", outdir: "dist", naming: "index.js" });
 if (!lib.success) throw new AggregateError(lib.logs, "Couldn't build the library.");
 
 await $`bunx tsc -p tsconfig.build.json`;
