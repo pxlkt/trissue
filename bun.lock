@@ -12,7 +12,7 @@
     },
     "packages/cli": {
       "name": "trissue",
-      "version": "0.2.1",
+      "version": "0.2.2",
       "bin": {
         "trissue": "dist/cli.js",
       },
@@ -21,12 +21,12 @@
         "marked": "18.2.1",
         "react": "19.2.9",
         "string-width": "7.2.0",
-        "trissue-embedded": "0.1.1",
+        "trissue-embedded": "0.1.2",
       },
     },
     "packages/embedded": {
       "name": "trissue-embedded",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "dependencies": {
         "@agentclientprotocol/sdk": "2.8.0",
         "zod": "^4.0.0",
