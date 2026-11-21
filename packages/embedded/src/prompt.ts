@@ -57,6 +57,8 @@ export function buildPrompt(input: PromptInput): string {
 
   return `You are helping a user report a problem with ${repo}. The repository is checked out in your working directory${input.source.commit ? ` at commit ${input.source.commit}` : ""}. Investigate it read-only: read and search the code, but do not edit files, run the project, install anything, or use the network.
 
+Use your file reading, listing and search tools. trissue refuses every shell command (even read-only ones like git, ls or find), every file edit and every network request, so don't try them. Do the work yourself, in this turn: don't hand it to subagents or background tasks, and don't end your turn until you've written the issue.
+
 <issue_writing_instructions>
 ${instructions}
 </issue_writing_instructions>
@@ -96,4 +98,14 @@ ${text}
 </user_steering>
 
 The user sent this while you were working. Take it into account, keep investigating, and finish with the issue in the required <trissue-issue> form (or <trissue-rejected>), as before.`;
+}
+
+/**
+ * Sent when a turn ends without an issue after trissue refused one of the
+ * agent's tools. Some agents (Antigravity) treat a refusal as the user
+ * stopping them and end the turn, so this says what happened and asks them
+ * to carry on.
+ */
+export function buildRefusedPrompt(): string {
+  return `Your last step was refused, not failed: this session can only read and search the repository. Running commands, editing files and fetching from the network are all refused. Don't try them again. Continue the investigation with read and search tools only, and finish with the issue in the required <trissue-issue> form (or <trissue-rejected>), as before.`;
 }

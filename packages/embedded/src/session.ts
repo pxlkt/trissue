@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import type { Harness, LaunchSpec } from "./harnesses.ts";
 import type { ModelOption } from "./models.ts";
-import { buildSteerPrompt } from "./prompt.ts";
+import { buildRefusedPrompt, buildSteerPrompt } from "./prompt.ts";
 
 /** Something the agent did, in the order it happened. */
 export type AgentEvent =
@@ -37,6 +37,8 @@ export interface StartOptions {
 export type TurnEnd = "end" | "cancelled";
 
 const STDERR_LIMIT = 4000;
+/** How many times an agent that stopped after a refused tool is asked to carry on. */
+const MAX_REFUSED_FOLLOW_UPS = 3;
 
 /** A running agent process, with its last stderr kept for error messages. */
 export interface AgentProcess {
@@ -82,6 +84,8 @@ export abstract class AgentSession {
   private stopped = false;
   /** Everything the agent has said (not its thinking), across turns. */
   private said = "";
+  /** Whether trissue refused a tool in the current turn. */
+  private refusedThisTurn = false;
   private readonly listener: ((event: AgentEvent) => void) | undefined;
 
   protected constructor(
@@ -107,6 +111,7 @@ export abstract class AgentSession {
 
   protected emit(event: AgentEvent): void {
     if (event.type === "text" && event.channel === "message") this.said += event.text;
+    if (event.type === "blocked") this.refusedThisTurn = true;
     this.listener?.(event);
   }
 
@@ -129,12 +134,22 @@ export abstract class AgentSession {
   async run(prompt: string): Promise<string> {
     if (this.running) throw new AgentError("The agent is already working.");
     let text = prompt;
+    let followUps = 0;
     try {
       for (;;) {
         if (this.stopped) throw new StoppedError();
         this.running = true;
+        this.refusedThisTurn = false;
         const end = await this.promptTurn(text);
-        if (end === "end") return this.said;
+        if (end === "end") {
+          const answered = this.said.includes("<trissue-issue>") || this.said.includes("<trissue-rejected>");
+          if (answered || !this.refusedThisTurn || followUps >= MAX_REFUSED_FOLLOW_UPS) return this.said;
+          // The agent gave up after a refused tool. Tell it why and let it go on.
+          followUps++;
+          this.emit({ type: "notice", text: "trissue refused that step. Asking the agent to continue with read-only tools." });
+          text = buildRefusedPrompt();
+          continue;
+        }
         if (this.stopped) throw new StoppedError();
         if (this.pendingSteer === null) throw new AgentError(`${this.harness.name} cancelled the task on its own.`);
         text = buildSteerPrompt(this.pendingSteer);
