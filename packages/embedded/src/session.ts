@@ -141,7 +141,9 @@ export abstract class AgentSession {
         this.running = true;
         this.refusedThisTurn = false;
         const end = await this.promptTurn(text);
-        if (end === "end") {
+        // Some agents (OpenCode) end the turn as cancelled when a permission is refused.
+        const refusedAndQuit = end === "cancelled" && !this.stopped && this.pendingSteer === null && this.refusedThisTurn;
+        if (end === "end" || refusedAndQuit) {
           const answered = this.said.includes("<trissue-issue>") || this.said.includes("<trissue-rejected>");
           if (answered || !this.refusedThisTurn || followUps >= MAX_REFUSED_FOLLOW_UPS) return this.said;
           // The agent gave up after a refused tool. Tell it why and let it go on.

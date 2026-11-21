@@ -102,7 +102,9 @@ const BUILT_IN: HarnessDefinition[] = [
     name: "OpenCode",
     brand: { color: ["#D2D2D2"], selectedText: "#1F1F1F" },
     bins: ["opencode"],
-    launch: (executable) => ({ command: executable, args: ["acp"], env: {} }),
+    // OpenCode allows every tool unless configured otherwise, so trissue would never be
+    // asked. Inline config outranks the user's and the repository's opencode.json.
+    launch: (executable) => ({ command: executable, args: ["acp"], env: { OPENCODE_CONFIG_CONTENT: JSON.stringify({ permission: { "*": "ask" } }) } }),
   },
   {
     id: "antigravity",
