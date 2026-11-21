@@ -1,5 +1,5 @@
 import { accessSync, constants, existsSync, statSync } from "node:fs";
-import { delimiter, dirname, join } from "node:path";
+import { basename, delimiter, dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { claudeLaunch } from "./claude-session.ts";
 import registry from "./registry.json" with { type: "json" };
@@ -108,8 +108,10 @@ const BUILT_IN: HarnessDefinition[] = [
     id: "antigravity",
     name: "Antigravity",
     brand: { color: ["#3186FF", "#00B95C", "#FFE432", "#FC413D", "#3186FF"], selectedText: "#FFFFFF" },
-    bins: ["agy_acp_server.par", "agy-acp-server"],
-    launch: (executable) => ({ command: executable, args: ["--uid="], env: {} }),
+    // `agy` is the Antigravity CLI, which serves ACP with `agy acp`. The other
+    // two are the standalone ACP server from before the CLI existed.
+    bins: ["agy", "agy_acp_server.par", "agy-acp-server"],
+    launch: (executable) => ({ command: executable, args: basename(executable, extname(executable)) === "agy" ? ["acp"] : ["--uid="], env: {} }),
   },
 ];
 
